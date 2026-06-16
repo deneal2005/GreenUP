@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GreenUp — Plant. Clean. Grow.</title>
+<meta name="description" content="GreenUp turns real eco-action into a living game. Log trees and clean-ups with photo + GPS proof, watch them appear on the world map, climb from Seed to Forest Guardian.">
+<meta name="theme-color" content="#EDF2E1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 22V10' stroke='%232F7D45' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z' fill='%232F7D45'/%3E%3Cpath d='M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z' fill='%237DC852'/%3E%3C/svg%3E">
+<script>(function(){try{var t=localStorage.getItem('gu-theme');t=t?JSON.parse(t):null;if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;0,9..144,800;0,9..144,900;1,9..144,650&family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- splash -->
+<div id="splash"><div class="splash-inner"><span class="splash-leaf">🌱</span><p>warming the greenhouse…</p></div></div>
+
+<!-- ============================== LANDING ============================== -->
+<section id="landing">
+  <nav class="land-nav" id="landNav">
+    <div class="logo" onclick="window.scrollTo({top:0,behavior:'smooth'})"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#2F7D45"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#7DC852"/></svg>GreenUp</div>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#impact">Live impact</a>
+      <a href="#give">Give</a>
+    </div>
+    <div class="nav-acts">
+      <button class="theme-btn" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+      <button class="btn btn-ghost btn-sm" data-auth-open="in">Sign in</button>
+      <button class="btn btn-primary btn-sm" data-auth-open="up">Join free</button>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Student sustainability tracker · est. 2026</span>
+      <h1>We <span class="accent">plant<svg class="squiggle" viewBox="0 0 120 12" preserveAspectRatio="none"><path d="M2 8 Q 16 2 30 7 T 60 7 T 90 6 T 118 7"/></svg></span>,<br>we <span class="clean-w">clean</span>,<br>the planet keeps score.</h1>
+      <p class="lede">GreenUp turns campus eco-action into a living game. Log a tree or a clean-up with photo + GPS proof, watch it sprout on the world map, and climb from Seed to Forest Guardian.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" data-auth-open="up">🌱 Start growing — it's free</button>
+        <button class="btn btn-ghost" id="demoBtn">Poke around the demo</button>
+      </div>
+      <div class="proof-chips">
+        <span class="pchip">📸 photo proof</span>
+        <span class="pchip">📍 gps pinned</span>
+        <span class="pchip">🕐 timestamped</span>
+        <span class="pchip">0% greenwash</span>
+      </div>
+    </div>
+    <div class="hero-art">
+      <svg viewBox="0 0 360 420" aria-label="An illustrated tree growing" role="img">
+        <ellipse cx="180" cy="400" rx="130" ry="16" fill="#CBDDB6" opacity=".8"/>
+        <path d="M180 400 V 250" stroke="#9C6644" stroke-width="13" class="draw"/>
+        <path d="M180 320 C 150 300 130 280 120 250" stroke="#9C6644" stroke-width="8" fill="none" class="draw" style="animation-delay:.5s"/>
+        <path d="M180 290 C 215 270 235 245 245 215" stroke="#9C6644" stroke-width="8" fill="none" class="draw" style="animation-delay:.8s"/>
+        <g class="leafpop" style="animation-delay:1.3s"><circle cx="180" cy="190" r="72" fill="#2F7D45"/></g>
+        <g class="leafpop" style="animation-delay:1.55s"><circle cx="112" cy="238" r="46" fill="#7DC852"/></g>
+        <g class="leafpop" style="animation-delay:1.7s"><circle cx="252" cy="202" r="50" fill="#5DA45F"/></g>
+        <g class="leafpop" style="animation-delay:1.9s"><circle cx="208" cy="132" r="40" fill="#7DC852"/></g>
+        <g class="leafpop" style="animation-delay:2.1s">
+          <circle cx="302" cy="96" r="24" fill="#FFCB3D"/>
+          <g stroke="#FFCB3D" stroke-width="4" stroke-linecap="round"><line x1="302" y1="58" x2="302" y2="48"/><line x1="302" y1="134" x2="302" y2="144"/><line x1="264" y1="96" x2="254" y2="96"/><line x1="340" y1="96" x2="350" y2="96"/><line x1="276" y1="70" x2="268" y2="62"/><line x1="328" y1="70" x2="336" y2="62"/><line x1="276" y1="122" x2="268" y2="130"/><line x1="328" y1="122" x2="336" y2="130"/></g>
+        </g>
+      </svg>
+      <div class="float-card fc1">🏅 <div>Badge unlocked<br><span class="mono">tree guardian</span></div></div>
+      <div class="float-card fc2">📍 <div>12.9716° N, 77.5946° E<br><span class="mono">verified ✓</span></div></div>
+      <div class="float-card fc3">+10 <div><span class="mono">TreePoints</span></div></div>
+    </div>
+  </header>
+
+  <div class="ticker" aria-hidden="true"><div class="ticker-track" id="tickerTrack"></div></div>
+
+  <section class="sec" id="how">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Field manual</span>
+      <h2>Proof of work. Literally.</h2>
+      <p>No vague pledges, no carbon hand-waving. Three steps, all of them outdoors.</p>
+    </div>
+    <div class="hiw-grid">
+      <div class="card step-card reveal" style="--d:.05s">
+        <span class="fig">FIG. 01</span><span class="step-emoji">📸</span>
+        <h3>Snap it</h3>
+        <p>Plant a sapling or clear a patch of litter. For clean-ups, shoot a <b>before and an after</b> — the comparison is the proof.</p>
+      </div>
+      <div class="card step-card reveal" style="--d:.15s">
+        <span class="fig">FIG. 02</span><span class="step-emoji">🛰️</span>
+        <h3>Pin it</h3>
+        <p>GPS and timestamp lock your action to a real place and moment. It lands on the world map for everyone to see.</p>
+      </div>
+      <div class="card step-card reveal" style="--d:.25s">
+        <span class="fig">FIG. 03</span><span class="step-emoji">🌳</span>
+        <h3>Grow</h3>
+        <p>Earn points, unlock badges, climb from Seed to Forest Guardian. Your college competes for the Golden Sapling 🏆.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats-band" id="impact">
+    <div class="stats-inner">
+      <div class="counter reveal"><div class="big"><span class="count" data-to="5000">0</span>+</div><div class="lbl">trees target · year one</div></div>
+      <div class="counter reveal" style="--d:.1s"><div class="big"><span class="count" data-to="1000">0</span>+</div><div class="lbl">students joining</div></div>
+      <div class="counter reveal" style="--d:.2s"><div class="big"><span class="count" data-to="20">0</span> t</div><div class="lbl">CO₂ offset goal</div></div>
+      <div class="counter reveal" style="--d:.3s"><div class="big"><span class="count" data-to="10">0</span>+</div><div class="lbl">partner campuses</div></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Built different</span>
+      <h2>Everything earns its place</h2>
+    </div>
+    <div class="bento-grid">
+      <div class="card bento-card b-span2 reveal">
+        <span class="eyebrow">Before / after verification</span>
+        <h3>Drag the line. See the change.</h3>
+        <p>Clean-ups are verified by comparing the two shots — same spot, same angle, less garbage.</p>
+        <div class="ba ba-demo" style="--h:190px;margin-top:1rem" id="baDemo"></div>
+      </div>
+      <div class="card bento-card reveal" style="--d:.1s">
+        <span class="eyebrow">One world map</span>
+        <h3>Every pin is real</h3>
+        <p>Browse trees and clean-ups across the planet, photos included.</p>
+        <svg class="dotmap" viewBox="0 0 300 170" width="100%" aria-hidden="true">
+          <path d="M28 60q20-24 52-22 28 2 38 18 26-12 50 0 30-22 58 -4 24 14 36 36-40 26-86 30-60 6-110-6-32-10-38-52Z" fill="none" stroke="currentColor" opacity=".18" stroke-width="1.5"/>
+          <circle cx="86" cy="74" r="3" fill="#2F7D45"/><circle cx="86" cy="74" class="blip" fill="none" stroke="#2F7D45"/>
+          <circle cx="168" cy="60" r="3" fill="#3E8ED0"/><circle cx="168" cy="60" class="blip" fill="none" stroke="#3E8ED0" style="animation-delay:.7s"/>
+          <circle cx="226" cy="96" r="3" fill="#2F7D45"/><circle cx="226" cy="96" class="blip" fill="none" stroke="#2F7D45" style="animation-delay:1.3s"/>
+          <circle cx="130" cy="118" r="3" fill="#2F7D45"/><circle cx="130" cy="118" class="blip" fill="none" stroke="#2F7D45" style="animation-delay:1.9s"/>
+        </svg>
+      </div>
+      <div class="card bento-card reveal" style="--d:.2s">
+        <span class="eyebrow">Friendly rivalry</span>
+        <h3>Campus vs campus</h3>
+        <div class="mini-lb">
+          <div><span>🥇 Eco Club</span><b>412</b></div>
+          <div><span>🥈 Hostel B Squad</span><b>355</b></div>
+          <div><span>🥉 CS Dept</span><b>301</b></div>
+        </div>
+      </div>
+      <div class="card bento-card b-span2 reveal" style="--d:.15s">
+        <span class="eyebrow">Give from anywhere</span>
+        <h3>Donations speak your currency</h3>
+        <p>Tiers adapt to wherever you open GreenUp — ₹50 in Bengaluru is about $1 in Boston. Every rupee, cent and yen is traceable.</p>
+        <div class="cur-chips"><span>₹ INR</span><span>$ USD</span><span>€ EUR</span><span>£ GBP</span><span>¥ JPY</span><span>R ZAR</span><span>R$ BRL</span><span>+ 23 more</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="quotes-grid">
+      <div class="card quote-card reveal"><span class="q-mark">“</span>I joined for the leaderboard, stayed because my mango tree is taller than me now.<b>Rahul S.</b><small>CS DEPT · 121 PTS</small></div>
+      <div class="card quote-card reveal" style="--d:.12s"><span class="q-mark">“</span>Our hostel cleared 40 kg off the lake bank in one weekend. The before/after slider shut every doubter up.<b>Devika P.</b><small>HOSTEL B · 96 PTS</small></div>
+      <div class="card quote-card reveal" style="--d:.24s"><span class="q-mark">“</span>I can't plant where I live, so I fund one tree a week. I've watched all nine of them appear on the map.<b>Hannah M.</b><small>DONOR · PORTLAND</small></div>
+    </div>
+  </section>
+
+  <section class="cta-final" id="give">
+    <span class="eyebrow reveal">Ready when you are</span>
+    <h2 class="reveal">The best time was 20 years ago. The second best is now.</h2>
+    <p class="reveal">Free for students, forever. Takes about 40 seconds to join.</p>
+    <div class="hero-cta reveal" style="justify-content:center">
+      <button class="btn btn-primary" data-auth-open="up">🌱 Create your grove</button>
+      <button class="btn btn-gold" id="landDonateBtn">💛 Fund a sapling instead</button>
+    </div>
+  </section>
+
+  <footer class="land-foot">
+    <div class="foot-grid">
+      <div>
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#2F7D45"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#7DC852"/></svg>GreenUp</div>
+        <p style="color:var(--soft);max-width:30ch;margin-top:.5rem">Made by students who got tired of greenwashing.</p>
+      </div>
+      <div><b>Project</b><br><a href="#how">How it works</a><a href="#impact">Live impact</a><a href="#give">Donate</a></div>
+      <div><b>Boring stuff</b><br><a href="#">Privacy (we barely collect)</a><a href="#">Terms</a><a href="#">Press kit</a></div>
+    </div>
+    <p class="foot-note">© 2026 GreenUp · crafted with mud on our keyboards · <span id="footYearNote">1,000,000 student-planted trees by 2030 or bust</span></p>
+  </footer>
+</section>
+
+<!-- ============================== AUTH ============================== -->
+<section id="authView">
+  <div class="auth-wrap">
+    <div class="auth-art">
+      <div class="logo" style="cursor:pointer" id="authLogoBtn"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#CFF0BC"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#8BD964"/></svg>GreenUp</div>
+      <p class="auth-art-quote" id="authQuote">“A society grows great when old men plant trees whose shade they shall never sit in.”</p>
+      <span class="mono">— greek proverb, probably muddy hands</span>
+      <svg class="auth-leafbg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#fff"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#fff"/></svg>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-card card">
+        <div id="authForms">
+          <h2 id="authTitle">Welcome back</h2>
+          <p class="sub" id="authSub">The soil missed you.</p>
+          <div class="auth-tabs" role="tablist">
+            <button id="tabIn" class="on" role="tab">Sign in</button>
+            <button id="tabUp" role="tab">Create account</button>
+          </div>
+
+          <form id="formIn" novalidate>
+            <div class="field"><label for="inEmail">Email</label><input type="email" id="inEmail" autocomplete="email" placeholder="you@campus.edu"></div>
+            <div class="field"><label for="inPw">Password <a class="forgot" href="#" id="forgotBtn">Forgot?</a></label><input type="password" id="inPw" autocomplete="current-password" placeholder="••••••••"></div>
+            <div class="err" id="inErr"></div>
+            <button class="btn btn-primary" style="width:100%" id="btnIn" type="submit">Sign in →</button>
+          </form>
+
+          <form id="formUp" style="display:none" novalidate>
+            <div class="field"><label for="upUser">Username</label><input type="text" id="upUser" autocomplete="username" placeholder="mossy_menace" maxlength="24"><div class="hint">3–24 chars · letters, numbers, underscores. This goes on the leaderboard.</div></div>
+            <div class="field"><label for="upEmail">Email</label><input type="email" id="upEmail" autocomplete="email" placeholder="you@campus.edu"></div>
+            <div class="field"><label for="upPw">Password</label><input type="password" id="upPw" autocomplete="new-password" placeholder="min. 6 characters"></div>
+            <div class="field"><label for="upCollege">College / team <span style="color:var(--faint);font-weight:500">(optional)</span></label><input type="text" id="upCollege" placeholder="Green Valley College"></div>
+            <div class="err" id="upErr"></div>
+            <button class="btn btn-primary" style="width:100%" id="btnUp" type="submit">Plant my account 🌱</button>
+          </form>
+
+          <div class="or-row">or</div>
+          <button class="btn btn-google" id="googleBtn">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.3 6.1 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+            Continue with Google
+          </button>
+          <button class="guest-link" id="guestBtn">Just exploring? Wander the demo grove →</button>
+        </div>
+        <div id="confirmPanel" hidden>
+          <span class="big-emoji">📬</span>
+          <h2>Check your inbox</h2>
+          <p class="sub" style="margin:.6rem 0 1.2rem">We sent a confirmation link to <b id="confirmEmail"></b>.<br>Click it, then come back here.</p>
+          <button class="btn btn-primary" id="confirmedBtn">I confirmed — sign me in</button>
+          <button class="guest-link" id="confirmBackBtn">← back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== APP ============================== -->
+<div id="app">
+<button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+<div class="scrim" id="scrim"></div>
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#2F7D45"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#7DC852"/></svg>GreenUp</div>
+    <button class="navbtn active" data-screen="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button>
+    <button class="navbtn" data-screen="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>Log an action</button>
+    <button class="navbtn" data-screen="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>World map</button>
+    <button class="navbtn" data-screen="board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3"/></svg>Leaderboard</button>
+    <button class="navbtn" data-screen="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M16 15.6c2.6.3 4.6 1.8 5.5 4.4"/></svg>Teams</button>
+    <button class="navbtn" data-screen="donate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 17 3 13.5 3 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 9 2.5C21 13.5 17 17 12 21Z"/></svg>Donate</button>
+    <button class="navbtn" data-screen="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13"/></svg>Eco hub</button>
+    <div class="side-theme"><span>Lights</span><button class="theme-btn" data-theme-toggle aria-label="Toggle dark mode">🌙</button></div>
+    <div class="side-foot">
+      <button class="me" data-screen="profile" id="meBtn">
+        <span id="meAvatar"></span>
+        <span><span class="me-name" id="meName">…</span><br><span class="me-lvl" id="meLvl">🌱 Seed</span></span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+  <!-- DASHBOARD -->
+  <section class="screen active" id="screen-dash">
+    <div class="screen-head">
+      <div><span class="eyebrow">Your grove</span><h2 id="greeting">Good day 🌿</h2><p id="greetSub">Here's what your hands have grown so far.</p></div>
+      <button class="btn btn-primary" data-screen="log">+ Log new action</button>
+    </div>
+    <div class="stat-grid">
+      <div class="card stat"><div class="ico">🌳</div><div class="big" id="stTrees">0</div><div class="lbl">Trees planted</div></div>
+      <div class="card stat"><div class="ico">🧹</div><div class="big" id="stCleans">0</div><div class="lbl">Clean-ups logged</div></div>
+      <div class="card stat"><div class="ico">♻️</div><div class="big" id="stWaste">0<span> kg</span></div><div class="lbl">Waste collected</div></div>
+      <div class="card stat"><div class="ico">💨</div><div class="big" id="stCO2">0<span> kg</span></div><div class="lbl">CO₂ offset / yr</div></div>
+      <div class="card stat"><div class="ico">🔥</div><div class="big" id="stStreak">0</div><div class="lbl">Day streak</div></div>
+    </div>
+    <div class="dash-grid">
+      <div>
+        <div class="card level-card">
+          <div class="ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="11"/>
+              <circle id="ringFill" cx="60" cy="60" r="52" fill="none" stroke="var(--leaf)" stroke-width="11" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" style="transition:stroke-dashoffset .8s ease"/>
+            </svg>
+            <div class="pct" id="ringPct">0%</div>
+          </div>
+          <div style="flex:1">
+            <span class="eyebrow">Level path</span>
+            <h3 style="font-family:var(--font-d);font-size:1.4rem" id="lvlName">Seed</h3>
+            <p style="font-size:.9rem;color:var(--soft)" id="lvlNext">Earn points to sprout.</p>
+            <div style="margin-top:.5rem;font-family:var(--font-m);font-weight:600" id="lvlPts">0 pts</div>
+          </div>
+        </div>
+        <div class="card" style="padding:1.3rem;margin-top:1.2rem">
+          <span class="eyebrow">Badge shelf</span>
+          <div class="badge-row" id="badgeRow"></div>
+        </div>
+      </div>
+      <div class="card" style="padding:1.3rem">
+        <span class="eyebrow">Field journal</span>
+        <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.8rem">Recent activity</h3>
+        <div class="feed" id="feed"></div>
+      </div>
+    </div>
+    <div class="card forest-card">
+      <div class="forest-head">
+        <div><span class="eyebrow">The living forest</span>
+        <h3 style="font-family:var(--font-d);font-size:1.3rem">Every action grows this skyline</h3></div>
+        <span class="mono" style="font-size:.8rem;color:var(--faint)" id="forestCount"></span>
+      </div>
+      <svg class="forest-strip" id="forestStrip" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-label="A row of trees, one per logged action"></svg>
+    </div>
+  </section>
+
+  <!-- LOG -->
+  <section class="screen" id="screen-log">
+    <div class="screen-head">
+      <div><span class="eyebrow">Proof of work, literally</span><h2>Log an action</h2><p>Photo + GPS + timestamp. Verified actions earn points and go on the world map.</p></div>
+    </div>
+    <div class="log-grid">
+      <div class="card" style="padding:1.4rem">
+        <div class="mode-switch" role="group" aria-label="Action type">
+          <button class="mode-btn tree" id="modeTree" aria-pressed="true">🌱 Plant a tree<small>+10 TreePoints</small></button>
+          <button class="mode-btn clean" id="modeClean" aria-pressed="false">🧹 Clean-up<small>+8 CleanPoints + weight bonus</small></button>
+        </div>
+
+        <div class="field" id="proofBlock">
+          <label>Before & after proof</label>
+          <div class="drop-pair tree" id="dropPair">
+            <div class="drop" id="dropBefore" tabindex="0" role="button" aria-label="Add the before photo"><span class="drop-tag">BEFORE</span><div id="dropBeforeInner"></div></div>
+            <div class="drop" id="dropAfter" tabindex="0" role="button" aria-label="Add the after photo"><span class="drop-tag">AFTER</span><div id="dropAfterInner"></div></div>
+          </div>
+          <input type="file" id="photoBefore" accept="image/*" hidden>
+          <input type="file" id="photoAfter" accept="image/*" hidden>
+          <div id="baPreview" style="margin-top:.7rem"></div>
+        </div>
+
+        <div class="field">
+          <label>Location</label>
+          <div class="gps-box"><span class="pulse"></span><span id="gpsText">Tap “Detect GPS” to pin this action</span></div>
+          <button class="chip" style="margin-top:.5rem" id="gpsBtn">📍 Detect GPS</button>
+        </div>
+
+        <div id="treeFields">
+          <div class="field">
+            <label for="speciesInput">Tree species</label>
+            <div class="combo">
+              <input type="text" id="speciesInput" placeholder="Search 100+ species — try “neem” or “oak”…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="comboList">
+              <span class="combo-caret">▾</span>
+              <div class="combo-list" id="comboList" role="listbox"></div>
+            </div>
+            <div class="hint">Can't find yours? Type any name and pick “use as custom”.</div>
+          </div>
+          <div class="field"><label for="treeNote">Field note <span style="color:var(--faint);font-weight:500">(optional)</span></label><input type="text" id="treeNote" placeholder="e.g. behind the science block, watered well"></div>
+        </div>
+
+        <div id="cleanFields" style="display:none">
+          <div class="field"><label>Waste type</label>
+            <div class="waste-chips" id="wasteChips">
+              <button type="button" class="chip" aria-pressed="true">♻️ Plastic</button><button type="button" class="chip" aria-pressed="false">📄 Paper</button><button type="button" class="chip" aria-pressed="false">🥫 Metal</button><button type="button" class="chip" aria-pressed="false">🍾 Glass</button><button type="button" class="chip" aria-pressed="false">🍂 Mixed</button>
+            </div>
+          </div>
+          <div class="field"><label for="kgRange">Approx. weight collected</label>
+            <div class="kg-row"><input type="range" id="kgRange" min="1" max="200" value="3"><input type="number" id="kgNum" min="1" max="200" value="3"><span class="kg-unit">kg</span></div>
+          </div>
+        </div>
+
+        <div class="field" id="teamField" style="display:none">
+          <label for="teamSelect">Contribute as</label>
+          <select id="teamSelect"></select>
+          <div class="hint">Your pick sticks for future submissions until you change it.</div>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%;font-size:1.05rem" id="submitBtn">Submit for verification →</button>
+      </div>
+      <div class="card preview-card">
+        <span class="eyebrow">Verification preview</span>
+        <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.4rem" id="pvTitle">🌱 New tree</h3>
+        <div class="pv-meta" id="pvMeta"></div>
+        <p style="margin-top:.9rem;font-size:.88rem;color:var(--soft)">Verified actions appear on the world map and earn <b class="pts-flash" id="pvPts">+10 pts</b>. Clean-up weight adds up to +10 bonus.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORLD MAP -->
+  <section class="screen" id="screen-map">
+    <div class="screen-head">
+      <div><span class="eyebrow">Where it happened</span><h2>The world grove</h2><p>Every verified tree and clean-up on the planet. Tap a pin for the photo and the story.</p></div>
+    </div>
+    <div class="card map-card">
+      <div class="map-tools">
+        <button class="chip" aria-pressed="true" data-filter="all">🌍 All</button>
+        <button class="chip" aria-pressed="false" data-filter="tree">🌳 Trees</button>
+        <button class="chip" aria-pressed="false" data-filter="cleanup">🧹 Clean-ups</button>
+        <button class="chip" id="nearBtn">🎯 Near me</button>
+        <span class="mono" id="mapCount"></span>
+      </div>
+      <div id="worldMap"></div>
+      <div id="mapStatus" style="display:none"></div>
+      <div id="mapNote" class="map-note" style="display:none"></div>
+    </div>
+    <div class="gallery-head">
+      <div><span class="eyebrow">Field gallery</span><h3>Fresh from the ground</h3></div>
+      <span class="mono" style="font-size:.78rem;color:var(--faint)" id="galleryCount"></span>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section class="screen" id="screen-board">
+    <div class="screen-head">
+      <div><span class="eyebrow">Friendly rivalry, real forests</span><h2>Leaderboard</h2><p>Season resets every semester. Top grove wins the Golden Sapling 🏆.</p></div>
+    </div>
+    <div class="lb-tabs">
+      <button class="chip" aria-pressed="true" data-lb="solo">🧑‍🎓 Students</button>
+      <button class="chip" aria-pressed="false" data-lb="team">🏫 Teams</button>
+    </div>
+    <div class="lb-list" id="lbList"></div>
+  </section>
+
+  <!-- DONATE -->
+  <section class="screen" id="screen-donate">
+    <div class="screen-head">
+      <div><span class="eyebrow">Can't plant? Still grow.</span><h2>Fund the forest</h2><p>Every contribution is traceable on the transparency dashboard.</p></div>
+    </div>
+    <div class="cur-row">
+      <label for="curSelect" style="font-weight:700;font-size:.9rem">Currency</label>
+      <select id="curSelect"></select>
+      <span class="cur-note" id="curNote"></span>
+    </div>
+    <div class="tier-grid" id="tierGrid">
+      <button class="tier selected" data-inr="50"><span class="t-emoji">🌱</span><span class="amt"></span><b>Plant one tree</b><small>Sapling + first-year care</small></button>
+      <button class="tier" data-inr="100"><span class="t-emoji">🧤</span><span class="amt"></span><b>Clean-up kit</b><small>Gloves, bags & pickers for one volunteer</small></button>
+      <button class="tier" data-inr="500"><span class="t-emoji">🌳</span><span class="amt"></span><b>Sponsor a drive</b><small>Kits + saplings for 10 students</small></button>
+      <button class="tier" data-inr="100" data-monthly="1"><span class="t-emoji">🌲</span><span class="amt"></span><b>Guardian Club</b><small>Monthly grove membership</small></button>
+    </div>
+    <div class="dash-grid">
+      <div class="card" style="padding:1.4rem">
+        <span class="eyebrow">Transparency dashboard</span>
+        <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:1rem">Where the money goes</h3>
+        <div class="stat-grid" style="margin-bottom:0">
+          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnRaised">—</div><div class="lbl">Raised this season</div></div>
+          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnTrees">0</div><div class="lbl">Trees sponsored</div></div>
+          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnKits">0</div><div class="lbl">Kits funded</div></div>
+        </div>
+        <button class="btn btn-gold" style="margin-top:1rem" id="donateBtn">💛 Donate now</button>
+        <p style="font-size:.76rem;color:var(--faint);margin-top:.7rem;font-family:var(--font-m)">checkout is simulated in this prototype — no card needed</p>
+      </div>
+      <div style="display:grid;gap:1.2rem;align-content:start">
+        <div class="card" style="padding:1.4rem">
+          <span class="eyebrow">Wall of impact</span>
+          <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.8rem">Recent donors</h3>
+          <div class="wall" id="donorWall"></div>
+        </div>
+        <div class="card" style="padding:1.4rem">
+          <span class="eyebrow">Donor leaderboard</span>
+          <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.8rem">Biggest hearts</h3>
+          <div class="lb-tabs" id="dnLbTabs" style="margin-bottom:.9rem">
+            <button class="chip" aria-pressed="false" data-dnp="week">Week</button>
+            <button class="chip" aria-pressed="false" data-dnp="month">Month</button>
+            <button class="chip" aria-pressed="true" data-dnp="all">All-time</button>
+          </div>
+          <div id="dnLbList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAMS -->
+  <section class="screen" id="screen-team">
+    <div class="screen-head">
+      <div><span class="eyebrow">Stronger together</span><h2>Teams</h2><p>Create a grove crew, recruit friends, and pool every tree and clean-up into one shared scoreboard.</p></div>
+      <button class="btn btn-primary" id="createTeamBtn">+ Create a team</button>
+    </div>
+    <div id="teamHome">
+      <div class="card" style="padding:1.3rem;margin-bottom:1.2rem">
+        <span class="eyebrow">My teams</span>
+        <div class="team-grid" id="myTeamsGrid" style="margin-top:.8rem"></div>
+      </div>
+      <div class="card" style="padding:1.3rem">
+        <span class="eyebrow">Find a team</span>
+        <div class="team-search" style="margin-top:.6rem"><input type="text" id="teamSearch" placeholder="Search by team or college name…" autocomplete="off"></div>
+        <div class="team-grid" id="teamResults" style="margin-top:1rem"></div>
+      </div>
+    </div>
+    <div id="teamDetail" style="display:none"></div>
+  </section>
+
+  <!-- ECO HUB -->
+  <section class="screen" id="screen-learn">
+    <div class="screen-head">
+      <div><span class="eyebrow">Knowledge drives action</span><h2>Eco hub</h2><p>Quick quizzes earn points. Facts earn bragging rights.</p></div>
+    </div>
+    <div class="learn-grid">
+      <div class="card quiz-card">
+        <span class="eyebrow">Daily quiz · +5 pts</span>
+        <div class="quiz-day" id="quizDay"></div>
+        <h3 id="quizQ"></h3>
+        <div id="quizOpts"></div>
+        <p id="quizMsg"></p>
+      </div>
+      <div>
+        <div class="fact">💧 <b>Did you know?</b> A single mature neem tree can transpire over 200 litres of water a day — nature's air cooler.</div>
+        <div class="fact">♻️ Recycling one aluminium can saves enough energy to run a laptop for about 5 hours.</div>
+        <div class="fact">🌳 One mature tree absorbs roughly 21 kg of CO₂ every year. Your grove math is built on this.</div>
+        <div class="fact">🧹 Plastic makes up ~80% of beach litter worldwide. Before/after photos = proof of change.</div>
+        <div class="fact">🐝 One in three bites of food you eat depends on a pollinator. Plant flowering natives.</div>
+        <div class="fact">🌍 Forests cover ~31% of Earth's land and hold 80% of its land-based species.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="screen" id="screen-profile">
+    <div class="screen-head">
+      <div><span class="eyebrow">Your patch of soil</span><h2>Profile</h2><p>How the grove sees you.</p></div>
+    </div>
+    <div class="profile-grid">
+      <div class="card pf-head">
+        <label class="avatar-big" for="pfAvatarInput" title="Change avatar">
+          <span id="pfAvatarWrap"></span>
+          <span class="cam">📷</span>
+        </label>
+        <input type="file" id="pfAvatarInput" accept="image/*" hidden>
+        <div class="pf-name" id="pfName">—</div>
+        <div class="pf-handle" id="pfHandle">@—</div>
+        <div class="pf-stats" id="pfStats"></div>
+        <div class="guest-note" id="pfGuestNote" style="display:none">🌼 You're in the <b>demo grove</b>. Create a free account and your trees, points and profile follow you everywhere.</div>
+      </div>
+      <div class="card pf-form">
+        <div class="field"><label for="pfUsername">Username</label><input type="text" id="pfUsername" maxlength="24"></div>
+        <div class="field"><label for="pfFullname">Full name</label><input type="text" id="pfFullname" placeholder="So friends can find you"></div>
+        <div class="field"><label for="pfCollege">College / team</label><input type="text" id="pfCollege" placeholder="Green Valley College"></div>
+        <div class="field"><label for="pfCountry">Country</label><input type="text" id="pfCountry" placeholder="India"></div>
+        <div class="field"><label for="pfBio">Bio</label><textarea id="pfBio" maxlength="200" placeholder="Plant nerd. Will trade compost tips for chai."></textarea></div>
+        <div class="field"><label>Email</label><input type="text" id="pfEmail" disabled></div>
+        <div class="err" id="pfErr"></div>
+        <div class="pf-actions">
+          <button class="btn btn-primary" id="pfSaveBtn">Save profile</button>
+          <button class="btn btn-ghost" id="signOutBtn">Sign out</button>
+        </div>
+        <p class="mono" style="font-size:.72rem;color:var(--faint);margin-top:1rem" id="pfJoined"></p>
+      </div>
+    </div>
+  </section>
+
+  </main>
+</div>
+</div>
+
+<!-- global bits -->
+<div id="toastStack" role="status" aria-live="polite"></div>
+<div class="modal-back" id="modalBack"><div class="card modal" id="modalCard"></div></div>
+<div class="card" id="setupBanner">
+  <h4>🔌 One step left to go live</h4>
+  <p>GreenUp is connected to Supabase but the tables aren't there yet. Open your project's <b>SQL editor</b>, paste <code>supabase-setup.sql</code> (it's next to this file), and run it once. Until then you're in demo mode.</p>
+  <div style="display:flex;gap:.5rem">
+    <button class="btn btn-primary btn-sm" onclick="location.reload()">I ran it — reload</button>
+    <button class="btn btn-soft btn-sm" onclick="document.getElementById('setupBanner').classList.remove('show')">Later</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
