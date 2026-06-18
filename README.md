@@ -1,11 +1,12 @@
 # 🌱 GreenUp — Plant. Clean. Grow.
 
 A student sustainability tracker: log trees and clean-ups with **photo + GPS proof**,
-watch them appear on a live **world map**, climb the leaderboard, fund saplings in
-**your own currency**. Built with plain HTML/CSS/JS + Supabase + Google Maps — no
+watch them appear on a live **world map**, climb the leaderboardgit. 
+Built with plain HTML/CSS/JS + Supabase for database + Google Maps — no
 build step, no framework.
 
-## Files
+## Filesclear
+
 
 | File | What it is |
 |---|---|
