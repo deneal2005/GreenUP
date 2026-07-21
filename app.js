@@ -1,9 +1,10 @@
 /* ============================================================
    GreenUp · app.js
-   one file, no build step, no framework. just the goods.
+   no build step, no framework. just the goods.
+   Loaded as an ES module; the pieces that grew their own opinions
+   live in ./js/.
    ============================================================ */
-(function () {
-'use strict';
+import { uploads } from './js/upload-queue.js';
 
 /* ------------------------------------------------------------
    0 · CONFIG
@@ -523,6 +524,83 @@ function renderForest() {
 ------------------------------------------------------------ */
 const photos = { before: null, after: null };
 let speciesCustom = false;
+
+/* ---- drafts ------------------------------------------------
+   A log entry is not a single moment: you shoot BEFORE, then go
+   and do twenty minutes of actual work, then shoot AFTER. The tab
+   gets backgrounded and sometimes evicted in between. So the photo
+   bytes go to IndexedDB (see js/upload-queue.js) and the small
+   stuff — mode, species, GPS — goes to localStorage beside it.
+------------------------------------------------------------ */
+const DRAFT_KEY = 'gu-draft';
+let draftId = null;
+let draftSaveTimer = 0;
+
+const draftOwner = () => (user && !guest) ? user.id : '';
+const newDraftId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function saveDraft() {
+  if (!draftId) return;
+  lsSet(DRAFT_KEY, {
+    id: draftId, uid: draftOwner(), mode: S.mode, ts: Date.now(),
+    species: ($('#speciesInput') || {}).value || '',
+    note: ($('#treeNote') || {}).value || '',
+    kg: ($('#kgNum') || {}).value || '',
+    waste: $$('#wasteChips .chip').map(c => c.getAttribute('aria-pressed') === 'true'),
+    gps: S.lastGPS || null,
+    team: ($('#teamSelect') || {}).value || '',
+  });
+}
+function saveDraftSoon() { clearTimeout(draftSaveTimer); draftSaveTimer = setTimeout(saveDraft, 400); }
+
+async function discardDraft(quiet) {
+  const id = draftId;
+  draftId = null;
+  photos.before = photos.after = null;
+  clearTimeout(draftSaveTimer);
+  try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+  if (id) await uploads.drop(id);
+  resetDrops();
+  $('#baPreview').innerHTML = '';
+  renderDraftBanner();
+  updPv();
+  if (!quiet) toast('Draft discarded — nothing kept', '🧺');
+}
+
+/* Restore whatever the last visit left behind. */
+async function restoreDraft() {
+  const d = lsGet(DRAFT_KEY);
+  if (!d || !d.id) { renderDraftBanner(); return; }
+  // a draft belongs to whoever started it; don't leak it across accounts
+  if ((d.uid || '') !== draftOwner()) { renderDraftBanner(); return; }
+
+  const rows = uploads.forDraft(d.id);
+  if (!rows.length) { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} renderDraftBanner(); return; }
+
+  // setMode first — switching modes deliberately throws a draft away,
+  // and we're restoring one, not starting one
+  setMode(d.mode === 'cleanup' ? 'cleanup' : 'tree');
+  draftId = d.id;
+  if (d.species && $('#speciesInput')) $('#speciesInput').value = d.species;
+  if (d.note && $('#treeNote')) $('#treeNote').value = d.note;
+  if (d.kg && $('#kgNum')) { $('#kgNum').value = d.kg; $('#kgRange').value = Math.min(200, Math.max(1, +d.kg || 1)); }
+  if (Array.isArray(d.waste)) $$('#wasteChips .chip').forEach((c, i) => c.setAttribute('aria-pressed', !!d.waste[i]));
+  if (d.gps) { S.lastGPS = d.gps; $('#gpsText').textContent = '📍 ' + (d.gps.place || (d.gps.lat.toFixed(4) + ', ' + d.gps.lng.toFixed(4))); }
+
+  for (const r of rows) {
+    if (r.slot !== 'before' && r.slot !== 'after') continue;
+    try { photos[r.slot] = { blob: r.blob, url: await blobToDataURL(r.blob) }; } catch (e) {}
+  }
+  paintSlot('before'); paintSlot('after');
+  refreshPairPreview();
+  syncAfterGate();
+  renderDraftBanner();
+  updPv();
+
+  const b = uploads.get(draftId, 'before');
+  if (b && b.status !== 'done' && b.status !== 'local') toast('Your before photo was waiting for you — picking the upload back up', '🌱');
+}
+
 const MODE_COPY = {
   tree: {
     before: '🍂<br><b>Bare ground</b><br><small>the spot, before planting</small>',
@@ -536,10 +614,73 @@ const MODE_COPY = {
 function resetDrops() {
   if (!photos.before) $('#dropBeforeInner').innerHTML = MODE_COPY[S.mode].before;
   if (!photos.after) $('#dropAfterInner').innerHTML = MODE_COPY[S.mode].after;
+  syncAfterGate();
+}
+
+/* ---- drop-zone painting ------------------------------------ */
+function upBar(p) { return '<span class="up-bar"><i style="width:' + Math.round((p || 0) * 100) + '%"></i></span>'; }
+
+function slotStatusHtml(r) {
+  if (!r) return '<small>attached ✓</small>';
+  if (r.status === 'done')      return '<small class="up-ok">☁️ safe in the cloud</small>';
+  if (r.status === 'local')     return '<small class="up-ok">💾 saved on this device</small>';
+  if (r.status === 'uploading') return '<small class="up-go">' + upBar(r.progress) + 'backing up… ' + Math.round((r.progress || 0) * 100) + '%</small>';
+  if (r.status === 'retrying')  return '<small class="up-wait">💾 saved · retrying upload…</small>';
+  return '<small class="up-go">' + upBar(0) + 'queued…</small>';
+}
+
+function paintSlot(slot) {
+  const inner = $(slot === 'before' ? '#dropBeforeInner' : '#dropAfterInner');
+  if (!inner) return;
+  const p = photos[slot];
+  if (!p) { inner.innerHTML = MODE_COPY[S.mode][slot]; return; }
+  inner.innerHTML = '<img src="' + p.url + '" alt="proof preview"><br>' +
+    slotStatusHtml(draftId ? uploads.get(draftId, slot) : null);
+}
+
+function refreshPairPreview() {
+  $('#baPreview').innerHTML = (photos.before && photos.after)
+    ? baSlider(photos.before.url, photos.after.url, 210) : '';
+}
+
+/* The after shot stays locked until the before shot is durable —
+   that's the whole point of the exercise. */
+function beforeIsSafe() { return !!(draftId && uploads.isSafe(draftId, 'before')); }
+function syncAfterGate() {
+  const d = $('#dropAfter');
+  if (!d) return;
+  const locked = !beforeIsSafe();
+  d.classList.toggle('locked', locked);
+  d.setAttribute('aria-disabled', locked ? 'true' : 'false');
+}
+
+/* A quiet line on the log screen when work is in flight or stuck. */
+function renderDraftBanner() {
+  const el = $('#draftBanner');
+  if (!el) return;
+  const rows = draftId ? uploads.forDraft(draftId) : [];
+  if (!rows.length) { el.className = 'draft-banner'; el.innerHTML = ''; return; }
+  const stuck = rows.filter(r => r.status === 'retrying');
+  const busyRows = rows.filter(r => r.status === 'uploading' || r.status === 'queued');
+  let msg, tone;
+  if (stuck.length) {
+    tone = 'warn';
+    msg = '⚠️ <b>Upload paused</b> — your photo' + (rows.length > 1 ? 's are' : ' is') + ' saved safely on this device and will go up on its own once the connection is back.' +
+      ' <button class="btn btn-soft btn-sm" id="draftRetryBtn">Retry now</button>';
+  } else if (busyRows.length) {
+    tone = 'busy';
+    msg = '☁️ <b>Backing up your proof…</b> take your time with the clean-up — you can leave this screen, the upload keeps going.';
+  } else {
+    tone = 'ok';
+    msg = '✅ <b>Proof secured.</b> Finish the job and come back for the after shot whenever you\'re ready.';
+  }
+  msg += ' <button class="btn btn-soft btn-sm" id="draftDropBtn">Discard draft</button>';
+  el.className = 'draft-banner show ' + tone;
+  el.innerHTML = msg;
 }
 
 function setMode(m) {
-  if (S.mode !== m) { photos.before = photos.after = null; $('#baPreview').innerHTML = ''; }
+  if (S.mode !== m) { if (draftId) discardDraft(true); photos.before = photos.after = null; $('#baPreview').innerHTML = ''; }
   S.mode = m;
   $('#modeTree').setAttribute('aria-pressed', m === 'tree');
   $('#modeClean').setAttribute('aria-pressed', m === 'cleanup');
@@ -558,11 +699,21 @@ function selTeam() {
   const t = myTeams.find(x => String(x.id) === sel.value);
   return t ? { id: t.id, name: t.name } : null;
 }
+function pvSlot(slot) {
+  if (!photos[slot]) return 'pending';
+  const r = draftId ? uploads.get(draftId, slot) : null;
+  if (!r) return 'attached ✓';
+  if (r.status === 'done')      return 'backed up ✓';
+  if (r.status === 'local')     return 'stored on device ✓';
+  if (r.status === 'uploading') return 'uploading… ' + Math.round((r.progress || 0) * 100) + '%';
+  if (r.status === 'retrying')  return 'stored ✓ · retrying';
+  return 'stored ✓ · queued';
+}
 function updPv() {
   const t = selTeam();
   const L = [];
-  L.push('before ........ ' + (photos.before ? 'attached ✓' : 'pending'));
-  L.push('after ......... ' + (photos.after ? 'attached ✓' : 'pending'));
+  L.push('before ........ ' + pvSlot('before'));
+  L.push('after ......... ' + pvSlot('after'));
   L.push('gps ........... ' + (S.lastGPS ? 'locked ✓' + (S.lastGPS.place ? ' · ' + S.lastGPS.place : '') : 'pending'));
   L.push('team .......... ' + (t ? t.name : 'solo'));
   L.push('timestamp ..... ' + new Date().toLocaleString());
@@ -582,22 +733,39 @@ function baSlider(b, a, h) { return '<div class="ba" style="--h:' + (h || 220) +
 
 async function handlePhoto(input, slot, innerId) {
   const f = input.files && input.files[0];
+  input.value = '';
   if (!f) return;
   if (!f.type.startsWith('image/')) { toast("That doesn't look like an image", '🤔'); return; }
+  if (slot === 'after' && !beforeIsSafe()) { toast('Before shot first — it anchors the whole proof', '📷'); return; }
+
+  const inner = document.getElementById(innerId);
+  inner.innerHTML = '<small class="up-go">' + upBar(0) + 'saving…</small>';
   try {
     const blob = await compressImage(f);
     const url = await blobToDataURL(blob);
-    photos[slot] = { blob, url };
-    document.getElementById(innerId).innerHTML = '<img src="' + url + '" alt="proof preview"><br><small>attached ✓ · EXIF queued</small>';
-    if (photos.before && photos.after) $('#baPreview').innerHTML = baSlider(photos.before.url, photos.after.url, 210);
-    updPv();
-  } catch (e) { toast('Could not read that photo', '⚠️'); }
-  input.value = '';
+    if (!draftId) draftId = newDraftId();
+    photos[slot] = { blob: blob, url: url };
+    // resolves once the bytes are durable; the cloud upload carries on alone
+    await uploads.put(draftId, slot, blob, draftOwner());
+    saveDraft();
+  } catch (e) {
+    photos[slot] = null;
+    toast('Could not save that photo — try again', '⚠️');
+  }
+  paintSlot(slot);
+  refreshPairPreview();
+  syncAfterGate();
+  renderDraftBanner();
+  updPv();
 }
 function wireDrop(dropId, inputId, slot, innerId) {
   const drop = document.getElementById(dropId), input = document.getElementById(inputId);
-  drop.addEventListener('click', () => input.click());
-  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  const open = () => {
+    if (slot === 'after' && !beforeIsSafe()) { toast('Before shot first — it anchors the whole proof', '📷'); return; }
+    input.click();
+  };
+  drop.addEventListener('click', open);
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
   drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
   drop.addEventListener('drop', e => {
@@ -605,6 +773,15 @@ function wireDrop(dropId, inputId, slot, innerId) {
     if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; handlePhoto(input, slot, innerId); }
   });
   input.addEventListener('change', () => handlePhoto(input, slot, innerId));
+}
+
+/* The queue calls this on every state change — repaint whatever it touched. */
+function onUploadChange(r) {
+  if (!draftId || r.draftId !== draftId) return;
+  paintSlot(r.slot);
+  syncAfterGate();
+  renderDraftBanner();
+  updPv();
 }
 
 function detectGPS() {
@@ -615,8 +792,9 @@ function detectGPS() {
     $('#gpsText').textContent = '📍 ' + S.lastGPS.lat + '°, ' + S.lastGPS.lng + '°' + (approx ? ' · approximate' : ' · locked ✓');
     btn.textContent = '📍 Detect GPS';
     updPv();
+    saveDraft();
     placeName(S.lastGPS.lat, S.lastGPS.lng).then(p => {
-      if (p && S.lastGPS) { S.lastGPS.place = p; $('#gpsText').textContent = '📍 ' + p + ' · ' + S.lastGPS.lat + '°, ' + S.lastGPS.lng + '° ✓'; updPv(); }
+      if (p && S.lastGPS) { S.lastGPS.place = p; $('#gpsText').textContent = '📍 ' + p + ' · ' + S.lastGPS.lat + '°, ' + S.lastGPS.lng + '° ✓'; updPv(); saveDraft(); }
     });
   };
   const fallback = () => done(12.92 + Math.random() * .09, 77.55 + Math.random() * .09, true);
@@ -723,6 +901,28 @@ function bumpStreak() {
   S.lastActionOn = today;
 }
 
+/* Block on a queued photo, narrating progress on the button. Bounded —
+   if the network is genuinely gone we fall through to the local save
+   path rather than hanging on the spinner forever. */
+const SUBMIT_WAIT = 60000;
+async function waitForUpload(slot, btn) {
+  const r = draftId ? uploads.get(draftId, slot) : null;
+  if (!r) throw new Error('no queued ' + slot + ' photo');
+  if (r.status === 'done') return r.url;
+  uploads.retryNow();
+  const tick = setInterval(() => {
+    const c = uploads.get(draftId, slot);
+    if (c && c.status === 'uploading') btn.textContent = 'Uploading ' + slot + '… ' + Math.round((c.progress || 0) * 100) + '%';
+  }, 200);
+  let timer;
+  try {
+    return await Promise.race([
+      uploads.whenDone(draftId, slot),
+      new Promise((res, rej) => { timer = setTimeout(() => rej(new Error('upload timed out')), SUBMIT_WAIT); }),
+    ]);
+  } finally { clearInterval(tick); clearTimeout(timer); }
+}
+
 async function submitAction() {
   if (busy) return;
   const mode = S.mode;
@@ -755,10 +955,11 @@ async function submitAction() {
 
   if (db && user && !guest) {
     try {
-      toast('Uploading proof 1/2…', '☁️');
-      urls.before = await apiUpload('proofs', user.id + '/' + ts + '-before.jpg', photos.before.blob);
-      toast('Uploading proof 2/2…', '☁️');
-      urls.after = await apiUpload('proofs', user.id + '/' + ts + '-after.jpg', photos.after.blob);
+      // both photos were queued the moment they were picked — the before
+      // one is almost always finished by now, so this is usually instant
+      urls.before = await waitForUpload('before', btn);
+      urls.after = await waitForUpload('after', btn);
+      btn.textContent = 'Verifying…';
       const { data, error } = await db.from('actions').insert({
         user_id: user.id, kind: mode, title: label,
         species: species, note: mode === 'tree' ? $('#treeNote').value.trim() : null,
@@ -775,6 +976,9 @@ async function submitAction() {
       toast('Cloud save failed — keeping it locally for now', '⚠️');
     }
   }
+  // whatever happened above, the local copies are still good for the UI
+  if (!urls.before) urls.before = photos.before.url;
+  if (!urls.after) urls.after = photos.after.url;
 
   if (mode === 'tree') { S.trees++; } else { S.cleans++; S.waste += kg; }
   addPoints(pts);
@@ -795,10 +999,8 @@ async function submitAction() {
   toast('Verified! +' + pts + ' pts — your forest just grew' + (team ? ' for ' + team.name : '') + '.', mode === 'tree' ? '🌱' : '🧹');
 
   // reset the form (the chosen team intentionally stays put)
-  photos.before = photos.after = null;
+  await discardDraft(true);   // the proof is filed; release the queued copies
   S.lastGPS = null;
-  resetDrops();
-  $('#baPreview').innerHTML = '';
   $('#gpsText').textContent = 'Tap “Detect GPS” to pin this action';
   $('#speciesInput').value = ''; $('#treeNote').value = '';
   btn.disabled = false; btn.textContent = 'Submit for verification →';
@@ -1762,6 +1964,8 @@ async function enterSession(session) {
   await loadMyTeams();
   showView('app');
   renderAll();
+  uploads.adopt(user.id);   // photos taken before signing in are now theirs
+  restoreDraft();
   loadWorld();
   loadDonations();
 }
@@ -1772,6 +1976,7 @@ function enterDemo() {
   loadMyTeams();
   showView('app');
   renderAll();
+  restoreDraft();
   if (!worldActions.length) loadWorld(); else renderWorld();
   loadDonations();
   toast('Demo grove — everything works, nothing leaves this browser', '🌼');
@@ -1844,6 +2049,13 @@ function wire() {
   });
   $('#gpsBtn').addEventListener('click', detectGPS);
   $('#submitBtn').addEventListener('click', submitAction);
+  // keep the draft's small fields in step with the form
+  $('#screen-log').addEventListener('input', saveDraftSoon);
+  $('#screen-log').addEventListener('change', saveDraftSoon);
+  $('#draftBanner').addEventListener('click', e => {
+    if (e.target.closest('#draftRetryBtn')) { uploads.retryNow(); toast('Trying again…', '☁️'); }
+    if (e.target.closest('#draftDropBtn')) discardDraft();
+  });
   initCombo();
   $('#wasteChips').addEventListener('click', e => {
     const c = e.target.closest('.chip');
@@ -1935,6 +2147,18 @@ async function boot() {
   sbInit();
   initCurrency();
 
+  // pick up any transfer the last visit left half-finished
+  await uploads.init({
+    supabaseUrl: SUPABASE_URL,
+    anonKey: SUPABASE_KEY,
+    onChange: onUploadChange,
+    getToken: async () => {
+      if (!db) return null;
+      try { const { data } = await db.auth.getSession(); return data && data.session ? data.session.access_token : null; }
+      catch (e) { return null; }
+    },
+  });
+
   let session = null;
   if (db) {
     try { const { data } = await db.auth.getSession(); session = data.session; } catch (e) {}
@@ -1955,4 +2179,3 @@ async function boot() {
 }
 
 document.addEventListener('DOMContentLoaded', boot);
-})();
