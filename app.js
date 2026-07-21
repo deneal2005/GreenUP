@@ -19,16 +19,54 @@ const LEVELS = [
   { n: 'Tree',            e: '🌳', min: 150, flavor: 'Birds are starting to take notice.' },
   { n: 'Forest Guardian', e: '🌲', min: 400, flavor: 'The grove answers to you now.' },
 ];
+/* Rarity tiers — order matters (index = strength) for the "best badge" showcase */
+const RARITY = {
+  common:    { label: 'Common',    rank: 0, c: '#6f9a5f' },
+  rare:      { label: 'Rare',      rank: 1, c: '#3E8ED0' },
+  epic:      { label: 'Epic',      rank: 2, c: '#9B59B6' },
+  legendary: { label: 'Legendary', rank: 3, c: '#E8A33D' },
+  mythic:    { label: 'Mythic',    rank: 4, c: '#E0457B' },
+};
+/* Each badge: val(s) gives current progress toward a numeric `goal` (auto-tests
+   val>=goal), OR a custom `test(s)` for compound achievements (no progress bar).
+   `secret` badges stay masked until earned. */
 const BADGES = [
-  { id: 'seed',   e: '🌱', n: 'Seed Starter',  t: 'Plant your first tree',      test: s => s.trees >= 1 },
-  { id: 'champ',  e: '🧹', n: 'Clean Champ',   t: 'First clean-up logged',      test: s => s.cleans >= 1 },
-  { id: 'guard',  e: '🌳', n: 'Tree Guardian', t: '10 trees planted',           test: s => s.trees >= 10 },
-  { id: 'trash',  e: '🗑️', n: 'Trash Buster',  t: '5 clean-ups logged',         test: s => s.cleans >= 5 },
-  { id: 'legend', e: '🏆', n: 'Eco Legend',    t: '5 trees + 5 clean-ups',      test: s => s.trees >= 5 && s.cleans >= 5 },
-  { id: 'brain',  e: '🧠', n: 'Quiz Whiz',     t: 'Ace 3 daily quizzes',        test: s => s.quizWins >= 3 },
-  { id: 'flame',  e: '🔥', n: 'Week Streak',   t: '7 days in a row',            test: s => s.streak >= 7 },
-  { id: 'heart',  e: '💛', n: 'Patron Sapling',t: 'Fund the forest once',       test: s => s.donatedCount >= 1 },
+  // — Beginner · Common —
+  { id: 'seed',    e: '🌱', n: 'Seed Starter',      cat: 'Beginner',        rarity: 'common', desc: 'Plant your very first tree.',                 val: s => s.trees,          goal: 1 },
+  { id: 'champ',   e: '🧹', n: 'Clean Champ',       cat: 'Beginner',        rarity: 'common', desc: 'Log your first clean-up.',                    val: s => s.cleans,         goal: 1 },
+  { id: 'curious', e: '🧠', n: 'Curious Mind',      cat: 'Beginner',        rarity: 'common', desc: 'Win your first daily eco-quiz.',              val: s => s.quizWins,       goal: 1 },
+  { id: 'firstgift',e:'💛', n: 'First Gift',        cat: 'Early Supporter', rarity: 'common', desc: 'Fund the forest with your first donation.',   val: s => s.donatedCount,   goal: 1 },
+  // — Explorer · Rare —
+  { id: 'guard',   e: '🌳', n: 'Tree Guardian',     cat: 'Tree Planter',    rarity: 'rare',   desc: 'Plant 10 verified trees.',                    val: s => s.trees,          goal: 10 },
+  { id: 'trash',   e: '🗑️', n: 'Trash Buster',      cat: 'Cleanup Champion',rarity: 'rare',   desc: 'Log 5 verified clean-ups.',                   val: s => s.cleans,         goal: 5 },
+  { id: 'hauler',  e: '⚖️', n: 'Waste Hauler',      cat: 'Explorer',        rarity: 'rare',   desc: 'Clear 50 kg of waste in total.',              val: s => Math.round(s.waste), goal: 50 },
+  { id: 'week',    e: '🔥', n: 'Week Warrior',      cat: 'Weekly Streak',   rarity: 'rare',   desc: 'Keep a 7-day activity streak.',               val: s => s.streak,         goal: 7 },
+  { id: 'quizwhiz',e: '🎓', n: 'Quiz Whiz',         cat: 'Explorer',        rarity: 'rare',   desc: 'Win 3 daily eco-quizzes.',                    val: s => s.quizWins,       goal: 3 },
+  // — Community Helper · Epic —
+  { id: 'dogood',  e: '🤝', n: 'Do-Gooder',         cat: 'Community Helper',rarity: 'epic',   desc: 'Plant 5 trees AND log 5 clean-ups.',          test: s => s.trees >= 5 && s.cleans >= 5 },
+  { id: 'warrior', e: '🛡️', n: 'Eco Warrior',       cat: 'Eco Warrior',     rarity: 'epic',   desc: 'Plant 25 verified trees.',                    val: s => s.trees,          goal: 25 },
+  { id: 'cleanchamp',e:'♻️', n: 'Cleanup Champion',  cat: 'Cleanup Champion',rarity: 'epic',   desc: 'Log 25 verified clean-ups.',                  val: s => s.cleans,         goal: 25 },
+  { id: 'month',   e: '📅', n: 'Month Marcher',     cat: 'Monthly Streak',  rarity: 'epic',   desc: 'Keep a 30-day activity streak.',              val: s => s.streak,         goal: 30 },
+  { id: 'supporter',e:'💝', n: 'Donation Supporter',cat: 'Donation Supporter',rarity:'epic',  desc: 'Make 5 donations to the forest.',             val: s => s.donatedCount,   goal: 5 },
+  { id: 'volunteer',e:'🦺', n: 'Volunteer Hero',    cat: 'Community Helper',rarity: 'epic',   desc: 'Reach 50 combined verified actions.',         val: s => s.trees + s.cleans, goal: 50 },
+  // — Forest Guardian · Legendary —
+  { id: 'fguard',  e: '🌲', n: 'Forest Guardian',   cat: 'Forest Guardian', rarity: 'legendary', desc: 'Complete 100 verified tree plantations.',  val: s => s.trees,          goal: 100 },
+  { id: 'cleanlord',e:'🌊', n: 'Cleanup Legend',    cat: 'Cleanup Champion',rarity: 'legendary', desc: 'Log 100 verified clean-ups.',              val: s => s.cleans,         goal: 100 },
+  { id: 'leader',  e: '👑', n: 'Community Leader',   cat: 'Community Leader',rarity: 'legendary', desc: 'Reach 1,000 TreePoints.',                  val: s => s.pts,            goal: 1000 },
+  { id: 'top',     e: '🥇', n: 'Top Contributor',   cat: 'Top Contributor', rarity: 'legendary', desc: 'Reach 2,500 points — roughly the top 0.1%.',val: s => s.pts,           goal: 2500 },
+  { id: 'carbon',  e: '💨', n: 'Carbon Cutter',     cat: 'Legend',          rarity: 'legendary', desc: 'Offset one tonne of CO₂ per year (~48 trees).',val: s => s.trees * 21,  goal: 1000 },
+  // — Mythic · near-impossible —
+  { id: 'megatree',e: '🌳', n: 'Thousand Groves',   cat: 'Mythic',          rarity: 'mythic', desc: 'Plant 500 verified trees.',                   val: s => s.trees,          goal: 500 },
+  { id: 'megaclean',e:'🪸', n: "Ocean's Ally",      cat: 'Mythic',          rarity: 'mythic', desc: 'Log 1,000 verified clean-ups.',               val: s => s.cleans,         goal: 1000 },
+  { id: 'year',    e: '🗓️', n: 'Year of Green',     cat: 'Mythic',          rarity: 'mythic', desc: 'Hold a 365-day activity streak.',             val: s => s.streak,         goal: 365 },
+  { id: 'titan',   e: '🏔️', n: 'Carbon Titan',      cat: 'Mythic',          rarity: 'mythic', desc: 'Offset ten tonnes of CO₂ per year.',          val: s => s.trees * 21,     goal: 10000 },
+  { id: 'impossible',e:'🌌',n: 'The Impossible',    cat: 'Impossible Challenge', rarity: 'mythic', desc: '1,000 trees, 1,000 clean-ups, and a 365-day streak.', test: s => s.trees >= 1000 && s.cleans >= 1000 && s.streak >= 365 },
+  // — Secret —
+  { id: 'grove',   e: '🕵️', n: 'Hidden Grove',      cat: 'Secret Badge',    rarity: 'legendary', secret: true, desc: 'You found the secret grove. (Tap the sidebar logo… a lot.)', test: s => !!s.foundGrove },
+  { id: 'balance', e: '☯️', n: 'In Perfect Balance',cat: 'Secret Badge',    rarity: 'epic',   secret: true, desc: 'Keep trees and clean-ups near-equal (5+ of each).', test: s => s.trees >= 5 && s.cleans >= 5 && Math.abs(s.trees - s.cleans) <= 1 },
 ];
+function badgeUnlocked(b, s) { s = s || S; return b.test ? b.test(s) : b.val(s) >= b.goal; }
+function badgeProgress(b, s) { s = s || S; return b.val ? [Math.min(Math.floor(b.val(s)), b.goal), b.goal] : null; }
 const QUIZ = [
   { q: 'How much CO₂ does one mature tree absorb per year?', o: ['~2 kg', '~21 kg', '~210 kg', 'None'], a: 1 },
   { q: 'Which waste takes the longest to decompose?', o: ['Paper', 'Banana peel', 'Glass', 'Cotton'], a: 2 },
@@ -211,7 +249,7 @@ function confetti(color) {
    3 · STATE
 ------------------------------------------------------------ */
 let db = null, user = null, guest = false, currentUid = null;
-let worldActions = [], donations = [], mapFilter = 'all', lbKind = 'solo';
+let worldActions = [], donations = [], campaigns = [], donState = 'idle', mapFilter = 'all', lbKind = 'solo';
 let pickedInr = 50, pickedMonthly = false, CUR = 'INR', curAuto = '';
 let busy = false;
 
@@ -298,7 +336,7 @@ async function apiCreateProfile(uid) {
 }
 async function apiMyActions() {
   try {
-    const { data, error } = await db.from('actions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20);
+    const { data, error } = await db.from('actions').select('*').eq('user_id', user.id).eq('status', 'approved').order('created_at', { ascending: false }).limit(20);
     if (error) throw error;
     return (data || []).map(r => ({ kind: r.kind, label: r.title, ts: +new Date(r.created_at), pts: r.points, img: r.photo_url || r.after_url || '' }));
   } catch (e) { sbFail(e); return []; }
@@ -332,7 +370,7 @@ async function loadWorld() {
   let rows = null;
   if (db) {
     try {
-      const { data, error } = await db.from('actions').select('*, profiles(username, college, avatar_url), teams(name)').order('created_at', { ascending: false }).limit(150);
+      const { data, error } = await db.from('actions').select('*, profiles(username, college, avatar_url), teams(name)').eq('status', 'approved').order('created_at', { ascending: false }).limit(150);
       if (error) throw error;
       rows = data;
     } catch (e) { sbFail(e); }
@@ -352,20 +390,58 @@ function subscribeWorld() {
     }).subscribe();
   } catch (e) { /* realtime is a bonus, not a dependency */ }
 }
+const inrOf = d => d.inr != null ? d.inr : (+d.amount / (CURRENCIES[d.cur || d.currency] || 1));
 async function loadDonations() {
-  if (db && user && !guest) {
-    try {
-      const { data, error } = await db.from('donations').select('donor_name, amount, currency, created_at, user_id').order('created_at', { ascending: false }).limit(400);
-      if (error) throw error;
-      if (data && data.length) {
-        donations = data.map(d => ({ name: d.donor_name || 'Anonymous', amount: +d.amount, cur: d.currency || 'INR', ts: +new Date(d.created_at), uid: d.user_id || '' }));
-        renderDonate();
-        return;
-      }
-    } catch (e) { sbFail(e); }
-  }
-  donations = [...(S.donationsLocal || []), ...DEMO_DONORS];
+  // donations + campaigns are public — everyone sees the real numbers
+  donState = 'loading';
   renderDonate();
+  let rows = null, camps = [], failed = false;
+  if (db) {
+    try {
+      const [dRes, cRes] = await Promise.all([
+        db.from('donations').select('donor_name, amount, amount_inr, currency, created_at, user_id, campaign_id').order('created_at', { ascending: false }).limit(500),
+        db.from('campaigns').select('*').eq('status', 'active').order('created_at', { ascending: false }),
+      ]);
+      if (dRes.error) throw dRes.error;
+      rows = dRes.data || [];
+      camps = cRes.error ? [] : (cRes.data || []);
+    } catch (e) { sbFail(e); failed = true; }
+  } else failed = true;
+
+  if (failed) { // keep the page alive with sample data, but flag the error
+    donations = [...(S.donationsLocal || []), ...DEMO_DONORS].map(d => ({ ...d, inr: inrOf(d) }));
+    campaigns = [];
+    donState = 'error';
+    renderDonate();
+    return;
+  }
+  const real = rows.map(d => ({
+    name: d.donor_name || 'Anonymous', amount: +d.amount,
+    inr: d.amount_inr != null ? +d.amount_inr : (+d.amount / (CURRENCIES[d.currency] || 1)),
+    cur: d.currency || 'INR', ts: +new Date(d.created_at), uid: d.user_id || '', campaign_id: d.campaign_id || null,
+  }));
+  const localExtra = guest ? (S.donationsLocal || []).map(d => ({ ...d, inr: inrOf(d) })) : [];
+  donations = [...localExtra, ...real];
+  campaigns = camps;
+  donState = 'ready';
+  renderDonate();
+}
+function subscribeDonations() {
+  if (!db) return;
+  try {
+    db.channel('gu-donations').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'donations' }, payload => {
+      const r = payload.new || {};
+      if (user && r.user_id === user.id) return; // our own gift is already on screen
+      donations.unshift({
+        name: r.donor_name || 'Anonymous', amount: +r.amount,
+        inr: r.amount_inr != null ? +r.amount_inr : (+r.amount / (CURRENCIES[r.currency] || 1)),
+        cur: r.currency || 'INR', ts: +new Date(r.created_at), uid: r.user_id || '', campaign_id: r.campaign_id || null,
+      });
+      if (donState !== 'ready') donState = 'ready';
+      renderDonate();
+      toast('Someone just funded the forest 💛');
+    }).subscribe();
+  } catch (e) { /* realtime is a bonus */ }
 }
 
 /* ------------------------------------------------------------
@@ -463,11 +539,48 @@ function renderAll() {
   renderDonate();
 }
 
+let stickyBadgeId = null;
+function defaultBadgeId() {
+  const earned = BADGES.filter(b => badgeUnlocked(b)).sort((a, b) => RARITY[b.rarity].rank - RARITY[a.rarity].rank);
+  return (earned[0] || BADGES[0]).id;
+}
+function setBadgeDetail(id) {
+  const panel = $('#badgeDetail');
+  if (!panel) return;
+  const b = BADGES.find(x => x.id === id) || BADGES.find(x => x.id === defaultBadgeId());
+  if (!b) return;
+  $$('#badgeRow .badge').forEach(el => el.classList.toggle('active', el.dataset.bid === b.id));
+  const u = badgeUnlocked(b);
+  const masked = b.secret && !u;
+  const r = RARITY[b.rarity];
+  const prog = badgeProgress(b);
+  let html = '<div class="bd-top">' +
+    '<span class="bd-coin ' + (u ? '' : 'locked') + '">' + (masked ? '❓' : b.e) + '</span>' +
+    '<div class="bd-titles"><div class="bd-name">' + esc(masked ? 'Secret badge' : b.n) +
+      ' <span class="rarity-pill" style="--rc:' + r.c + '">' + r.label + '</span></div>' +
+      '<small class="bd-cat">' + esc(b.cat) + '</small></div>' +
+    '<span class="bd-state ' + (u ? 'on' : '') + '">' + (u ? 'Unlocked ✓' : 'Locked') + '</span></div>' +
+    '<p class="bd-desc">' + esc(masked ? 'Keep exploring — this one reveals itself when you earn it.' : b.desc) + '</p>';
+  if (prog && !u && !masked) {
+    const pct = Math.min(100, Math.round(prog[0] / prog[1] * 100));
+    html += '<div class="bd-prog"><div class="bd-prog-bar"><span style="width:' + pct + '%;background:' + r.c + '"></span></div>' +
+      '<span class="bd-prog-txt">Progress: ' + fmtInt(prog[0]) + ' / ' + fmtInt(prog[1]) + '</span></div>';
+  }
+  panel.innerHTML = html;
+}
 function renderBadges() {
-  $('#badgeRow').innerHTML = BADGES.map(b => {
-    const u = b.test(S);
-    return '<div class="badge ' + (u ? 'unlocked' : 'locked') + '" title="' + esc(b.t) + '"><div class="coin">' + b.e + '</div>' + b.n + '</div>';
+  const row = $('#badgeRow');
+  if (!row) return;
+  row.innerHTML = BADGES.map(b => {
+    const u = badgeUnlocked(b);
+    const masked = b.secret && !u;
+    return '<button type="button" class="badge r-' + b.rarity + ' ' + (u ? 'unlocked' : 'locked') + (masked ? ' secret' : '') +
+      '" data-bid="' + b.id + '" aria-label="' + esc(masked ? 'Secret badge' : b.n) + '" title="' + esc(masked ? 'Secret badge' : b.n + ' · ' + RARITY[b.rarity].label) + '">' +
+      '<span class="coin">' + (masked ? '❓' : b.e) + '</span></button>';
   }).join('');
+  const cnt = $('#badgeCount');
+  if (cnt) cnt.textContent = BADGES.filter(b => badgeUnlocked(b)).length + ' / ' + BADGES.length + ' unlocked';
+  setBadgeDetail(stickyBadgeId || defaultBadgeId());
 }
 
 function renderFeed() {
@@ -506,17 +619,69 @@ function treeShape(i, x, front, animated) {
 function renderForest() {
   const svg = $('#forestStrip');
   if (!svg) return;
-  const n = Math.min(60, 18 + S.trees + S.cleans);
-  let out = '<circle cx="938" cy="28" r="15" fill="#FFCB3D" opacity=".85"/>' +
-            '<path d="M150 36 q5 -7 10 0 q5 -7 10 0" stroke="var(--faint)" stroke-width="1.6" fill="none" opacity=".6"/>' +
-            '<path d="M730 24 q5 -7 10 0 q5 -7 10 0" stroke="var(--faint)" stroke-width="1.6" fill="none" opacity=".5"/>' +
-            '<rect y="142" width="1000" height="8" fill="var(--sprout-soft)"/>';
-  const back = Math.round(n * .7);
+  const dark = isDark();
+  const cTrees = worldActions.filter(a => a.kind === 'tree').length;
+  const cCleans = worldActions.filter(a => a.kind === 'cleanup').length;
+  const community = cTrees + cCleans;
+  const personal = (S.trees || 0) + (S.cleans || 0);
+  const impact = community + personal;
+  const n = Math.min(66, 16 + Math.round(impact * 0.7) + personal);
+
+  const sky   = dark ? ['#0e1f18', '#16291c'] : ['#d9e9f4', '#eef4e2'];
+  const hillB = dark ? '#0f2016' : '#c3ddb0';
+  const hillF = dark ? '#122a1c' : '#b1d69f';
+  const ground = dark ? '#14301f' : '#cfe4b4';
+  const orb   = dark ? '#cbd6e6' : '#FFCB3D';
+
+  let out = '<defs><linearGradient id="guSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + sky[0] + '"/><stop offset="1" stop-color="' + sky[1] + '"/></linearGradient></defs>';
+  out += '<rect width="1000" height="200" fill="url(#guSky)"/>';
+  out += '<g class="gu-orb"><circle cx="150" cy="48" r="21" fill="' + orb + '" opacity="' + (dark ? '.75' : '.92') + '"/></g>';
+  // distant parallax hills for depth
+  out += '<path d="M0 150 Q 250 104 500 138 T 1000 128 V200 H0Z" fill="' + hillB + '" opacity=".7"/>';
+  out += '<path d="M0 158 Q 300 122 600 150 T 1000 146 V200 H0Z" fill="' + hillF + '" opacity=".85"/>';
+  // faint back trees (denser as the community grows)
+  const back = Math.round(n * 0.7);
   for (let i = 0; i < back; i++) out += treeShape(i * 3 + 101, 36 + i * (930 / Math.max(back - 1, 1)), false, false);
+  out += '<rect y="150" width="1000" height="50" fill="' + ground + '"/>';
+  out += '<rect y="149" width="1000" height="3" fill="' + (dark ? '#1e4530' : '#a9d77f') + '" opacity=".7"/>';
+  // front trees — newly grown ones sprout in
   for (let i = 0; i < n; i++) out += treeShape(i + 3, 20 + i * (960 / Math.max(n - 1, 1)), true, i >= lastForestN && lastForestN > 0);
   svg.innerHTML = out;
   lastForestN = n;
-  $('#forestCount').textContent = n + ' trees standing (you + community)';
+
+  $('#forestCount').textContent = n + ' trees standing · grows with the whole grove';
+  renderForestImpact(cTrees, cCleans, community);
+  renderForestFx(impact, dark);
+}
+function renderForestImpact(trees, cleans, impact) {
+  const el = $('#forestImpact');
+  if (!el) return;
+  const co2 = trees * 21;
+  const co2txt = co2 >= 1000 ? (co2 / 1000).toFixed(1) + ' t' : co2 + ' kg';
+  const chip = (e, v, l) => '<div class="fi-chip"><span class="fi-e">' + e + '</span><span><b>' + v + '</b><small>' + l + '</small></span></div>';
+  el.innerHTML =
+    chip('🌳', fmtInt(trees), 'Trees planted') +
+    chip('🧹', fmtInt(cleans), 'Areas cleaned') +
+    chip('🌍', fmtInt(impact), 'Community actions') +
+    chip('💨', co2txt, 'CO₂ offset / yr');
+}
+function renderForestFx(impact, dark) {
+  const fx = $('#forestFx');
+  if (!fx) return;
+  if (prefersReduced) { fx.innerHTML = ''; return; } // no motion when the user opts out
+  const birds = Math.min(4, 1 + Math.floor(impact / 10));
+  const flits = Math.min(5, 1 + Math.floor(impact / 7));
+  const leaves = Math.min(6, 2 + Math.floor(impact / 12));
+  let h = '';
+  for (let i = 0; i < 2; i++)
+    h += '<span class="fx fx-cloud" style="top:' + (8 + i * 13) + '%;--fly:' + (64 + i * 26) + 's;--dl:' + (-i * 22) + 's;opacity:' + (dark ? 0.16 : 0.5) + '">☁️</span>';
+  for (let i = 0; i < birds; i++)
+    h += '<span class="fx fx-bird" style="top:' + (10 + srand(i * 5 + 1) * 24).toFixed(0) + '%;--fly:' + (15 + srand(i) * 12).toFixed(1) + 's;--bob:' + (0.9 + srand(i * 3) * 0.6).toFixed(2) + 's;--dl:' + (-srand(i * 7) * 15).toFixed(1) + 's">🐦</span>';
+  for (let i = 0; i < flits; i++)
+    h += '<span class="fx fx-flit" style="left:' + (10 + srand(i * 9 + 2) * 80).toFixed(0) + '%;top:' + (52 + srand(i * 4) * 26).toFixed(0) + '%;--fly:' + (30 + srand(i * 2) * 20).toFixed(1) + 's;--bob:' + (2 + srand(i) * 1.8).toFixed(2) + 's;--dl:' + (-srand(i * 6) * 10).toFixed(1) + 's">🦋</span>';
+  for (let i = 0; i < leaves; i++)
+    h += '<span class="fx fx-leaf" style="left:' + (6 + srand(i * 11 + 3) * 88).toFixed(0) + '%;--fly:' + (7 + srand(i) * 6).toFixed(1) + 's;--bob:' + (2.4 + srand(i * 5) * 1.6).toFixed(2) + 's;--dl:' + (-srand(i * 8) * 7).toFixed(1) + 's">🍃</span>';
+  fx.innerHTML = h;
 }
 
 /* ------------------------------------------------------------
@@ -1256,6 +1421,7 @@ function renderWorld() {
   }).join('');
   $('#galleryCount').textContent = worldActions.length + ' actions worldwide';
   refreshMarkers();
+  renderForest(); // community impact feeds the living forest
 }
 function openActionModal(a) {
   const pair = hasPair(a) || a.kind === 'cleanup';
@@ -1639,13 +1805,43 @@ function setCurrency(c) {
 }
 function deriveDonStats() {
   let totalInr = 0, trees = 0, kits = 0;
+  const donorSet = new Set();
   donations.forEach(d => {
-    const rate = CURRENCIES[d.cur] || 1;
-    const inr = d.amount / rate;
+    const inr = inrOf(d);
     totalInr += inr;
     if (inr >= 500) trees += 10; else if (inr >= 100) kits += 1; else trees += 1;
+    donorSet.add(d.uid ? 'u:' + d.uid : 'n:' + (d.name || 'Anonymous').toLowerCase());
   });
-  return { totalInr, trees, kits };
+  return { totalInr, trees, kits, donors: donorSet.size, gifts: donations.length };
+}
+function skeletonTags(n) { let s = ''; for (let i = 0; i < n; i++) s += '<span class="leaf-tag skeleton" style="width:' + (72 + (i % 3) * 22) + 'px">&nbsp;</span>'; return s; }
+function skeletonRows(n) { let s = ''; for (let i = 0; i < n; i++) s += '<div class="dn-hist-row skeleton" style="height:46px;border:none"></div>'; return s; }
+function renderCampaigns(loading) {
+  const el = $('#dnCampaigns');
+  if (!el) return;
+  if (loading) { el.innerHTML = '<div class="dn-camp skeleton" style="height:78px"></div>'; return; }
+  if (!campaigns.length) { el.innerHTML = ''; return; }
+  const raisedBy = {};
+  donations.forEach(x => { if (x.campaign_id != null) raisedBy[x.campaign_id] = (raisedBy[x.campaign_id] || 0) + inrOf(x); });
+  el.innerHTML = '<span class="eyebrow" style="padding:0 .1rem">Active campaigns</span>' + campaigns.map(c => {
+    const raised = raisedBy[c.id] || 0, goal = +c.goal_inr || 0;
+    const pct = goal ? Math.min(100, Math.round(raised / goal * 100)) : 0;
+    return '<div class="dn-camp"><div class="dn-camp-top"><div style="min-width:0"><b>' + esc(c.title) + '</b>' +
+      (c.description ? '<small>' + esc(c.description) + '</small>' : '') + '</div><span class="dn-camp-pct">' + pct + '%</span></div>' +
+      '<div class="dn-bar"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="dn-camp-meta"><b>' + fmtCur(Math.round(convInr(raised))) + '</b> raised' + (goal ? ' of ' + fmtCur(Math.round(convInr(goal))) + ' goal' : '') + '</div></div>';
+  }).join('');
+}
+function renderDonHistory(loading) {
+  const el = $('#dnHistory');
+  if (!el) return;
+  if (loading) { el.innerHTML = skeletonRows(4); return; }
+  const rows = donations.slice(0, 12);
+  el.innerHTML = rows.length
+    ? rows.map(x => '<div class="dn-hist-row">' + avatarHtml(x.name) +
+        '<div style="flex:1;min-width:0"><b>' + esc(x.name) + '</b><small>' + timeAgo(x.ts) + (x.campaign_id ? ' · 🎯 campaign' : '') + '</small></div>' +
+        '<span class="dn-hist-amt">' + fmtCur(x.amount, x.cur) + '</span></div>').join('')
+    : '<p class="empty-note">No gifts yet — your name could be first here 🌱</p>';
 }
 function renderDonate() {
   const sel = $('#curSelect');
@@ -1660,11 +1856,33 @@ function renderDonate() {
     const amt = inrTo(+t.dataset.inr);
     t.querySelector('.amt').innerHTML = fmtCur(amt) + (t.dataset.monthly ? '<span class="permo">/mo</span>' : '');
   });
+
+  const loading = donState === 'loading';
+  const err = $('#dnError');
+  if (err) {
+    err.style.display = donState === 'error' ? 'flex' : 'none';
+    if (donState === 'error') err.innerHTML = '<span>⚠️ Couldn’t reach the donation server — showing sample data.</span><button class="btn btn-soft btn-sm" id="dnRetry">Retry</button>';
+  }
+  const live = $('#dnLive');
+  if (live) live.style.display = donState === 'ready' && db ? 'inline-flex' : 'none';
+
+  renderCampaigns(loading);
+
   const d = deriveDonStats();
-  $('#dnRaised').textContent = fmtCur(Math.round(convInr(d.totalInr)));
-  setBig('dnTrees', d.trees);
-  setBig('dnKits', d.kits);
-  $('#donorWall').innerHTML = donations.slice(0, 12).map(x => '<span class="leaf-tag">🌱 ' + esc(x.name) + ' · ' + fmtCur(x.amount, x.cur) + '</span>').join('') || '<p style="color:var(--soft)">Be the first leaf on this wall.</p>';
+  if (loading) {
+    ['dnRaised', 'dnDonors', 'dnTrees', 'dnKits'].forEach(id => { const el = $('#' + id); if (el) el.textContent = '···'; });
+  } else {
+    $('#dnRaised').textContent = fmtCur(Math.round(convInr(d.totalInr)));
+    if ($('#dnDonors')) setBig('dnDonors', d.donors);
+    setBig('dnTrees', d.trees);
+    setBig('dnKits', d.kits);
+  }
+
+  const wall = $('#donorWall');
+  if (loading) wall.innerHTML = skeletonTags(6);
+  else wall.innerHTML = donations.slice(0, 12).map(x => '<span class="leaf-tag">🌱 ' + esc(x.name) + ' · ' + fmtCur(x.amount, x.cur) + '</span>').join('') || '<p class="empty-note">Be the first leaf on this wall 🌱</p>';
+
+  renderDonHistory(loading);
   renderDonorBoard();
 }
 let dnPeriod = 'all';
@@ -1677,7 +1895,7 @@ function renderDonorBoard() {
     if ((d.ts || 0) < cut) return;
     const key = d.uid ? 'u:' + d.uid : 'n:' + (d.name || 'Anonymous').toLowerCase();
     if (!agg[key]) agg[key] = { name: d.name || 'Anonymous', uid: d.uid || '', inr: 0, n: 0 };
-    agg[key].inr += d.amount / (CURRENCIES[d.cur] || 1);
+    agg[key].inr += inrOf(d);
     agg[key].n++;
   });
   const rows = Object.values(agg).sort((a, b) => b.inr - a.inr).slice(0, 8);
@@ -1704,17 +1922,20 @@ async function confirmDonate() {
   const amount = Math.max(0, +$('#dnAmt').value || 0);
   if (!amount) { toast('Pick an amount first', '💛'); return; }
   const name = ($('#dnName').value || '').trim() || 'Anonymous';
-  const entry = { name, amount, cur: CUR, ts: Date.now(), uid: (user && !guest) ? user.id : '' };
+  const inr = amount / (CURRENCIES[CUR] || 1);
+  const campId = campaigns[0] ? campaigns[0].id : null;
+  const entry = { name, amount, cur: CUR, inr, ts: Date.now(), uid: (user && !guest) ? user.id : '', campaign_id: campId };
   if (db && user && !guest) {
     try {
-      const { error } = await db.from('donations').insert({ user_id: user.id, donor_name: name, amount, currency: CUR });
+      const { error } = await db.from('donations').insert({ user_id: user.id, donor_name: name, amount, currency: CUR, amount_inr: inr, campaign_id: campId });
       if (error) throw error;
-    } catch (e) { sbFail(e); }
+    } catch (e) { sbFail(e); toast('Cloud save failed — recorded locally', '⚠️'); }
   } else {
     S.donationsLocal = S.donationsLocal || [];
     S.donationsLocal.unshift(entry);
   }
   donations.unshift(entry);
+  donState = 'ready';
   S.donatedCount = (S.donatedCount || 0) + 1;
   persist();
   closeModal();
@@ -1777,7 +1998,7 @@ function renderProfile() {
   $('#pfGuestNote').style.display = guest ? 'block' : 'none';
   $('#signOutBtn').textContent = guest ? 'Exit demo' : 'Sign out';
   $('#pfJoined').textContent = p.created_at ? 'growing since ' + new Date(p.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '';
-  const unlocked = BADGES.filter(b => b.test(S)).length;
+  const unlocked = BADGES.filter(b => badgeUnlocked(b)).length;
   $('#pfStats').innerHTML =
     '<span class="pstat">🌳 <b>' + S.trees + '</b> trees</span>' +
     '<span class="pstat">🧹 <b>' + S.cleans + '</b> clean-ups</span>' +
@@ -1957,6 +2178,12 @@ async function enterSession(session) {
   let p = await apiGetProfile(user.id);
   if (!p) p = await apiCreateProfile(user.id);
   S = stateFromProfile(p);
+  // reveal the admin link for staff (super_admin / admin / moderator)
+  try {
+    db.from('user_roles').select('role').eq('user_id', user.id).then(({ data }) => {
+      const l = $('#adminLink'); if (l && data && data.length) l.style.display = 'flex';
+    });
+  } catch (e) {}
   const qz = lsGet('gu-quiz-' + user.id);
   if (qz) S.quizDoneDay = qz.quizDoneDay || 0;
   S.actions = await apiMyActions();
@@ -2034,8 +2261,25 @@ function wire() {
   $('#scrim').addEventListener('click', closeSide);
   let logoTaps = 0;
   $('#side').querySelector('.logo').addEventListener('click', () => {
-    if (++logoTaps === 7) { logoTaps = 0; confetti('#7DC852'); toast('You found the hidden grove. Tell no one.', '🌳'); }
+    if (++logoTaps === 7) {
+      logoTaps = 0; confetti('#7DC852'); toast('You found the hidden grove. Tell no one.', '🌳');
+      if (!S.foundGrove) { S.foundGrove = true; persist(); renderBadges(); }
+    }
   });
+  // badge shelf — inline hover (desktop) / tap (mobile) descriptions
+  const badgeRow = $('#badgeRow');
+  if (badgeRow) {
+    const hover = e => { const b = e.target.closest('.badge'); if (b) setBadgeDetail(b.dataset.bid); };
+    badgeRow.addEventListener('mouseover', hover);
+    badgeRow.addEventListener('focusin', hover);
+    badgeRow.addEventListener('mouseleave', () => setBadgeDetail(stickyBadgeId || defaultBadgeId()));
+    badgeRow.addEventListener('click', e => {
+      const b = e.target.closest('.badge');
+      if (!b) return;
+      stickyBadgeId = stickyBadgeId === b.dataset.bid ? null : b.dataset.bid;
+      setBadgeDetail(stickyBadgeId || defaultBadgeId());
+    });
+  }
   // log
   $('#modeTree').addEventListener('click', () => setMode('tree'));
   $('#modeClean').addEventListener('click', () => setMode('cleanup'));
@@ -2096,6 +2340,7 @@ function wire() {
     pickedMonthly = !!t.dataset.monthly;
   });
   $('#donateBtn').addEventListener('click', openDonate);
+  $('#screen-donate').addEventListener('click', e => { if (e.target.closest('#dnRetry')) loadDonations(); });
   $('#dnLbTabs').addEventListener('click', e => {
     const c = e.target.closest('[data-dnp]');
     if (!c) return;
@@ -2173,6 +2418,7 @@ async function boot() {
   loadWorld();
   subscribeWorld();
   loadDonations();
+  subscribeDonations();
   $('#splash').classList.add('done');
   setTimeout(() => { const sp = $('#splash'); if (sp) sp.remove(); }, 600);
   console.log('%c🌱 GreenUp', 'font-size:16px;font-weight:bold;color:#2F7D45', '— plant. clean. grow.');

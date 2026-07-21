@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GreenUp · Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 22V10' stroke='%232F7D45' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z' fill='%232F7D45'/%3E%3Cpath d='M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z' fill='%237DC852'/%3E%3C/svg%3E">
+<script>(function(){try{var t=localStorage.getItem('gu-theme');t=t?JSON.parse(t):null;if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.dataset.theme='dark'}catch(e){}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;0,9..144,800&family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  /* ---- admin-only layout, reusing the app's design tokens ---- */
+  .admin-top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:1rem;padding:.7rem 1.1rem;background:var(--panel);border-bottom:1px solid var(--line)}
+  .admin-top .logo{font-family:var(--font-d);font-weight:800;font-size:1.15rem;display:flex;align-items:center;gap:.5rem}
+  .admin-top .logo svg{width:24px;height:24px}
+  .admin-badge{font-family:var(--font-m);font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.2rem .5rem;border-radius:6px;background:var(--ink);color:var(--bg)}
+  .admin-top .sp{flex:1}
+  .admin-shell{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 56px)}
+  .admin-side{border-right:1px solid var(--line);padding:1rem .8rem;display:flex;flex-direction:column;gap:.25rem;background:var(--panel)}
+  .a-nav{display:flex;align-items:center;gap:.65rem;padding:.6rem .8rem;border-radius:var(--r-md);font-weight:600;font-size:.92rem;color:var(--soft);background:none;border:none;cursor:pointer;text-align:left;width:100%}
+  .a-nav:hover{background:var(--panel-2)}
+  .a-nav.active{background:var(--sprout-soft);color:var(--ink)}
+  .a-nav .ni{font-size:1.05rem;width:1.3rem;text-align:center}
+  .a-nav .nb{margin-left:auto;font-family:var(--font-m);font-size:.68rem;font-weight:700;background:var(--leaf);color:#fff;border-radius:999px;padding:.05rem .4rem;min-width:1.1rem;text-align:center}
+  .admin-main{padding:1.4rem;max-width:1180px;overflow-x:hidden}
+  .a-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.1rem}
+  .a-head h1{font-family:var(--font-d);font-size:1.7rem}
+  .a-head p{color:var(--soft);font-size:.9rem}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.9rem;margin-bottom:1.3rem}
+  .kpi{padding:1.1rem 1.2rem}
+  .kpi .k-ico{font-size:1.3rem}
+  .kpi .k-big{font-family:var(--font-d);font-size:1.9rem;font-weight:800;line-height:1.1;margin-top:.2rem}
+  .kpi .k-lbl{color:var(--faint);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;font-family:var(--font-m);margin-top:.15rem}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:1.3rem}
+  .chart-card{padding:1.1rem 1.2rem}
+  .chart-card h3{font-family:var(--font-d);font-size:1.05rem;margin-bottom:.6rem}
+  .chart-wrap{position:relative;height:230px}
+  .a-filters{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+  .a-filters input[type=search],.a-filters input[type=text]{flex:1;min-width:180px;padding:.6rem .9rem;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--panel);color:var(--ink);font:inherit}
+  .a-filters select{padding:.55rem .8rem;border:1.5px solid var(--line);border-radius:var(--r-md);background:var(--panel);color:var(--ink);font:inherit}
+  .atable{width:100%;border-collapse:collapse;font-size:.88rem}
+  .atable th{text-align:left;font-family:var(--font-m);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding:.55rem .7rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  .atable td{padding:.6rem .7rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  .atable tr:hover td{background:var(--panel-2)}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel)}
+  .status-pill{font-family:var(--font-m);font-size:.66rem;font-weight:700;text-transform:uppercase;padding:.16rem .5rem;border-radius:999px;white-space:nowrap}
+  .st-approved{background:var(--sprout-soft);color:var(--leaf)}
+  .st-pending{background:var(--clean-soft);color:var(--clean)}
+  .st-draft{background:var(--panel-2);color:var(--soft)}
+  .st-rejected{background:rgba(224,69,123,.14);color:#c0356a}
+  .role-badge{font-family:var(--font-m);font-size:.64rem;font-weight:700;text-transform:uppercase;padding:.14rem .5rem;border-radius:999px;border:1px solid var(--line)}
+  .rb-super_admin{background:#4b2e83;color:#fff;border-color:#4b2e83}
+  .rb-admin{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+  .rb-moderator{background:var(--clean);color:#fff;border-color:var(--clean)}
+  .pager{display:flex;align-items:center;gap:.6rem;justify-content:flex-end;margin-top:.9rem;font-size:.85rem}
+  .q-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+  .q-card{padding:0;overflow:hidden;display:flex;flex-direction:column}
+  .q-imgs{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line)}
+  .q-imgs figure{margin:0;position:relative;aspect-ratio:1;background:var(--panel-2)}
+  .q-imgs img{width:100%;height:100%;object-fit:cover;display:block}
+  .q-imgs .tag{position:absolute;top:.35rem;left:.35rem;font-family:var(--font-m);font-size:.58rem;font-weight:700;background:var(--ink);color:var(--bg);padding:.12rem .4rem;border-radius:5px}
+  .q-body{padding:.9rem 1rem;flex:1;display:flex;flex-direction:column;gap:.35rem}
+  .q-body h4{font-size:.98rem}
+  .q-body small{color:var(--faint);font-family:var(--font-m);font-size:.7rem}
+  .q-acts{display:flex;gap:.5rem;margin-top:.6rem}
+  .q-acts .btn{flex:1;padding:.5rem;font-size:.85rem}
+  .btn-danger{background:#c0356a;color:#fff;border:1.5px solid #c0356a}
+  .btn-danger:hover{filter:brightness(1.06)}
+  .a-empty{padding:2.5rem 1rem;text-align:center;color:var(--soft)}
+  .a-empty .e-emoji{font-size:2rem;display:block;margin-bottom:.5rem}
+  .bell{position:relative;background:none;border:none;cursor:pointer;font-size:1.25rem;padding:.2rem}
+  .bell .dot{position:absolute;top:0;right:-2px;background:#c0356a;color:#fff;font-size:.58rem;font-weight:700;font-family:var(--font-m);border-radius:999px;padding:.02rem .28rem;min-width:1rem}
+  .notif-pop{position:absolute;top:52px;right:1.1rem;width:min(340px,90vw);max-height:60vh;overflow:auto;z-index:40;padding:.6rem}
+  .notif-row{display:flex;gap:.6rem;align-items:center;padding:.5rem .6rem;border-radius:var(--r-md)}
+  .notif-row:hover{background:var(--panel-2)}
+  .a-userchip{display:flex;align-items:center;gap:.5rem;font-size:.85rem}
+  .audit-meta{font-family:var(--font-m);font-size:.72rem;color:var(--soft);white-space:pre-wrap;word-break:break-word}
+  .menu-toggle{display:none;background:none;border:none;font-size:1.4rem;cursor:pointer}
+  @media(max-width:860px){
+    .admin-shell{grid-template-columns:1fr}
+    .admin-side{position:fixed;top:56px;left:0;bottom:0;width:230px;z-index:25;transform:translateX(-100%);transition:transform .2s}
+    .admin-side.open{transform:none}
+    .menu-toggle{display:block}
+  }
+</style>
+</head>
+<body>
+<div id="adminSplash" style="position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:100"><div style="text-align:center"><div style="font-size:2rem">🌿</div><p style="color:var(--soft);margin-top:.5rem">checking your access…</p></div></div>
+
+<!-- gate: sign-in required / access denied -->
+<div id="gate" style="display:none;min-height:100vh;place-items:center;padding:1.5rem" ></div>
+
+<!-- admin shell -->
+<div id="shell" style="display:none">
+  <div class="admin-top">
+    <button class="menu-toggle" id="menuToggle" aria-label="Menu">☰</button>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22V10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12C12 7 8 4 3 4c0 5 4 8 9 8Z" fill="#2F7D45"/><path d="M12 9c0-4 3-6 8-6 0 4-3 6-8 6Z" fill="#7DC852"/></svg>GreenUp <span class="admin-badge">Admin</span></div>
+    <div class="sp"></div>
+    <button class="bell" id="bellBtn" aria-label="Notifications">🔔<span class="dot" id="bellDot" style="display:none">0</span></button>
+    <button class="theme-btn" data-theme-toggle aria-label="Toggle dark mode">🌙</button>
+    <div class="a-userchip"><span id="meAvatar"></span><span><b id="meName">…</b><br><span id="meRole"></span></span></div>
+    <a class="btn btn-ghost btn-sm" href="index.html">← App</a>
+  </div>
+  <div class="card notif-pop" id="notifPop" style="display:none"></div>
+  <div class="admin-shell">
+    <aside class="admin-side" id="side">
+      <nav id="aNav"></nav>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" id="signOutBtn" style="width:100%">Sign out</button>
+    </aside>
+    <main class="admin-main" id="view"></main>
+  </div>
+</div>
+
+<div id="toastStack" role="status" aria-live="polite"></div>
+<div class="modal-back" id="modalBack"><div class="card modal" id="modalCard"></div></div>
+<script src="admin.js"></script>
+</body>
+</html>
