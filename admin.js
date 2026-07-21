@@ -60,38 +60,64 @@ const can = p => myPerms.has(p);
 const topRole = () => [...myRoles].sort((a, b) => (ROLE_RANK[b] || 0) - (ROLE_RANK[a] || 0))[0] || null;
 
 /* ---- boot / gate ---- */
+let authReady = false; // ignore the auth event burst that fires during initial load
+function withTimeout(p, ms, label) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error((label || 'request') + ' timed out')), ms))]);
+}
 async function init() {
   applyTheme((() => { try { const t = localStorage.getItem('gu-theme'); return t ? JSON.parse(t) : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) { return 'light'; } })());
   document.querySelectorAll('[data-theme-toggle]').forEach(b => b.addEventListener('click', () => applyTheme(isDark() ? 'light' : 'dark')));
   $('#modalBack').addEventListener('click', e => { if (e.target === e.currentTarget || e.target.closest('[data-close]')) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  if (!window.supabase) { showGate(gateError('The Supabase SDK failed to load — check your connection.')); return; }
+  // hard safety net — the splash must never spin forever
+  const splashGuard = setTimeout(() => {
+    if ($('#adminSplash').style.display !== 'none') { authReady = true; showGate(gateError('This is taking longer than expected — check your connection and reload.')); }
+  }, 12000);
+
+  if (!window.supabase) { clearTimeout(splashGuard); showGate(gateError('The Supabase SDK failed to load — check your connection.')); return; }
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  db.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') location.reload(); });
+  // only react to genuine post-load auth changes; reload on SIGNED_IN only while
+  // the gate is up (i.e. someone just signed in) so we never loop on the initial
+  // event some supabase-js versions re-emit for an existing session.
+  db.auth.onAuthStateChange((ev) => {
+    if (!authReady) return;
+    if (ev === 'SIGNED_OUT') { location.reload(); return; }
+    if (ev === 'SIGNED_IN' && $('#shell').style.display === 'none') location.reload();
+  });
 
-  try { const { data } = await db.auth.getSession(); session = data.session; } catch (e) {}
-  if (!session || !session.user) { showGate(gateSignIn()); return; }
+  try {
+    try { const { data } = await withTimeout(db.auth.getSession(), 8000, 'session'); session = data.session; }
+    catch (e) { session = null; }
+    if (!session || !session.user) { clearTimeout(splashGuard); authReady = true; showGate(gateSignIn()); return; }
 
-  // load my profile + roles
-  const [pRes, rRes] = await Promise.all([
-    db.from('profiles').select('id, username, avatar_url').eq('id', session.user.id).maybeSingle(),
-    db.from('user_roles').select('role').eq('user_id', session.user.id),
-  ]);
-  me = pRes.data || { id: session.user.id, username: (session.user.email || 'you').split('@')[0], avatar_url: '' };
-  myRoles = (rRes.data || []).map(r => r.role);
-  myPerms = new Set(myRoles.flatMap(r => PERMS[r] || []));
+    // load my profile + roles (wrapped — a hiccup here must not hang the splash)
+    const [pRes, rRes] = await withTimeout(Promise.all([
+      db.from('profiles').select('id, username, avatar_url').eq('id', session.user.id).maybeSingle(),
+      db.from('user_roles').select('role').eq('user_id', session.user.id),
+    ]), 12000, 'profile & roles');
+    if (rRes && rRes.error) throw rRes.error;
+    me = (pRes && pRes.data) || { id: session.user.id, username: (session.user.email || 'you').split('@')[0], avatar_url: '' };
+    myRoles = ((rRes && rRes.data) || []).map(r => r.role);
+    myPerms = new Set(myRoles.flatMap(r => PERMS[r] || []));
 
-  if (!myRoles.length) { showGate(gateDenied()); return; }
+    clearTimeout(splashGuard);
+    if (!myRoles.length) { authReady = true; showGate(gateDenied()); return; }
 
-  $('#adminSplash').style.display = 'none';
-  $('#gate').style.display = 'none';
-  $('#shell').style.display = 'block';
-  renderChrome();
-  wireChrome();
-  route();
-  refreshBell();
-  subscribeNew();
+    $('#adminSplash').style.display = 'none';
+    $('#gate').style.display = 'none';
+    $('#shell').style.display = 'block';
+    renderChrome();
+    wireChrome();
+    route();
+    refreshBell();
+    subscribeNew();
+    authReady = true;
+  } catch (e) {
+    clearTimeout(splashGuard);
+    authReady = true;
+    showGate(gateError('Could not load the console: ' + ((e && e.message) || 'unknown error') + '. Reload to retry.'));
+  }
 }
 function showGate(html) {
   $('#adminSplash').style.display = 'none';
