@@ -11,8 +11,9 @@ build step, no framework.
 | File | What it is |
 |---|---|
 | `index.html` | the app (open this) |
+| `admin.html` + `admin.js` | role-gated **admin console** (analytics, verification queue, users, donations, campaigns, roles, audit log) |
 | `styles.css` | design system, light + dark themes |
-| `app.js` | all logic — auth, log flow, maps, currency, quiz… |
+| `app.js` | all logic — auth, log flow, maps, currency, badges, quiz… |
 | `js/upload-queue.js` | durable background uploads for proof photos |
 | `js/idb.js` | tiny IndexedDB promise wrapper |
 | `supabase-setup.sql` | one-time database setup — **run this first** |
@@ -47,13 +48,30 @@ moment the page is alive again.
 1. Open your Supabase project → **SQL Editor** → **New query**
 2. Paste the entire contents of `supabase-setup.sql` → **Run**
 
-This creates the `profiles`, `actions` and `donations` tables, row-level-security
-policies, the signup trigger (auto-creates a profile with the chosen username),
-two public storage buckets (`proofs`, `avatars`), and turns on realtime for the
-world map. Safe to re-run.
+This creates the `profiles`, `actions`, `donations`, `teams`, `campaigns`,
+`user_roles` and `audit_log` tables, row-level-security policies, private-schema
+RBAC helper functions, the signup trigger (auto-creates a profile with the chosen
+username), two public storage buckets (`proofs`, `avatars`), and turns on realtime
+for the world map and donation ticker. Safe to re-run.
 
 > Until you run it, the app still works fully in **demo mode** and shows a small
 > reminder banner.
+
+### 1b · Make yourself a super admin (for the admin console)
+The admin console at `admin.html` is locked to users with a staff role. Bootstrap
+the first one manually:
+1. Sign up in the app first (so your `profiles` row exists).
+2. Supabase Dashboard → **Authentication → Users** → copy your user's **UID**.
+3. **SQL Editor** → run (paste your UID):
+   ```sql
+   insert into public.user_roles (user_id, role)
+   values ('PASTE-YOUR-AUTH-UID-HERE', 'super_admin') on conflict do nothing;
+   ```
+4. Open `admin.html`, sign in — you can now promote other **admins** and
+   **moderators** from the *Admins & roles* tab (no more SQL needed).
+
+Roles: **super admin** (everything, incl. roles & settings) → **admin** (verify,
+users, donations, campaigns) → **moderator** (review & verify submissions only).
 
 ### 2 · Serve the app over http
 Auth (especially Google) won't work from a `file://` double-click. From this folder run **one** of:
@@ -99,7 +117,14 @@ search, join; each team has a dashboard with members, pooled stats and
 achievements). Your last-used team stays selected for future submissions.
 
 Levels: 🌱 Seed → 🌿 Sprout (50) → 🌳 Tree (150) → 🌲 Forest Guardian (400).
-CO₂ math: 21 kg/year per mature tree.
+There are **27 badges** across five rarities (Common → Mythic) — hover or tap any
+badge for its description, rarity and live progress. CO₂ math: 21 kg/year per tree.
+
+### Moderation
+Submissions go live and count immediately (**post-moderation**). Staff review them
+in the admin **Verification queue** — *Approve* keeps a submission (stamps it
+reviewed), *Reject* hides it from the map and can reverse the points. The world
+map and activity feed only show `approved` actions.
 
 ## Troubleshooting
 
@@ -117,9 +142,14 @@ CO₂ math: 21 kg/year per mature tree.
 
 ## Honest footnotes
 
-- “EXIF check” and “duplicate check” in the verification preview are simulated —
-  wire them to an edge function when you're ready for real moderation.
+- Verification is **human** (the admin queue), not automatic — there's no EXIF /
+  duplicate ML check yet. Wire one to an edge function when you're ready.
 - Donation checkout is simulated (no payment processor). The `donations` table
-  records intent so the transparency dashboard works.
+  records intent (with a currency-normalised `amount_inr`) so the transparency
+  dashboard and admin analytics work against real data.
 - Currency conversion uses static approximate rates defined in `app.js`
   (`CURRENCIES`) — swap in a live FX API if precision starts to matter.
+- Ban/flag are moderation flags on the profile; deleting an auth account still
+  needs the Supabase dashboard (the client can't use a `service_role` key).
+- The admin dashboard loads **Chart.js** from a CDN for its graphs; everything
+  else stays dependency-free.

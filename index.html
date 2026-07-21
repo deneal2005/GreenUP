@@ -253,6 +253,7 @@
     <button class="navbtn" data-screen="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M16 15.6c2.6.3 4.6 1.8 5.5 4.4"/></svg>Teams</button>
     <button class="navbtn" data-screen="donate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21C7 17 3 13.5 3 9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 9 2.5C21 13.5 17 17 12 21Z"/></svg>Donate</button>
     <button class="navbtn" data-screen="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13"/></svg>Eco hub</button>
+    <a class="navbtn" id="adminLink" href="admin.html" style="display:none;text-decoration:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z"/></svg>Admin panel</a>
     <div class="side-theme"><span>Lights</span><button class="theme-btn" data-theme-toggle aria-label="Toggle dark mode">🌙</button></div>
     <div class="side-foot">
       <button class="me" data-screen="profile" id="meBtn">
@@ -295,8 +296,10 @@
           </div>
         </div>
         <div class="card" style="padding:1.3rem;margin-top:1.2rem">
-          <span class="eyebrow">Badge shelf</span>
+          <div class="badge-head"><span class="eyebrow">Badge shelf</span><span class="mono badge-count" id="badgeCount"></span></div>
           <div class="badge-row" id="badgeRow"></div>
+          <div class="badge-detail" id="badgeDetail" aria-live="polite"></div>
+          <p class="badge-hint">Hover or tap a badge for details, rarity &amp; progress.</p>
         </div>
       </div>
       <div class="card" style="padding:1.3rem">
@@ -311,7 +314,11 @@
         <h3 style="font-family:var(--font-d);font-size:1.3rem">Every action grows this skyline</h3></div>
         <span class="mono" style="font-size:.8rem;color:var(--faint)" id="forestCount"></span>
       </div>
-      <svg class="forest-strip" id="forestStrip" viewBox="0 0 1000 150" preserveAspectRatio="none" aria-label="A row of trees, one per logged action"></svg>
+      <div class="forest-impact" id="forestImpact"></div>
+      <div class="forest-scene">
+        <svg class="forest-strip" id="forestStrip" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-label="A living forest skyline that grows denser with community action"></svg>
+        <div class="forest-fx" id="forestFx" aria-hidden="true"></div>
+      </div>
     </div>
   </section>
 
@@ -432,6 +439,8 @@
       <select id="curSelect"></select>
       <span class="cur-note" id="curNote"></span>
     </div>
+    <div class="dn-error" id="dnError" style="display:none"></div>
+    <div class="dn-campaigns" id="dnCampaigns"></div>
     <div class="tier-grid" id="tierGrid">
       <button class="tier selected" data-inr="50"><span class="t-emoji">🌱</span><span class="amt"></span><b>Plant one tree</b><small>Sapling + first-year care</small></button>
       <button class="tier" data-inr="100"><span class="t-emoji">🧤</span><span class="amt"></span><b>Clean-up kit</b><small>Gloves, bags & pickers for one volunteer</small></button>
@@ -440,10 +449,11 @@
     </div>
     <div class="dash-grid">
       <div class="card" style="padding:1.4rem">
-        <span class="eyebrow">Transparency dashboard</span>
+        <div class="dn-dash-head"><span class="eyebrow">Transparency dashboard</span><span class="dn-live" id="dnLive" style="display:none"><span class="dn-live-dot"></span>live</span></div>
         <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:1rem">Where the money goes</h3>
         <div class="stat-grid" style="margin-bottom:0">
-          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnRaised">—</div><div class="lbl">Raised this season</div></div>
+          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnRaised">—</div><div class="lbl">Total raised</div></div>
+          <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnDonors">0</div><div class="lbl">Donors</div></div>
           <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnTrees">0</div><div class="lbl">Trees sponsored</div></div>
           <div class="stat" style="box-shadow:none;border:none;background:none;padding:.5rem 0"><div class="big" id="dnKits">0</div><div class="lbl">Kits funded</div></div>
         </div>
@@ -455,6 +465,11 @@
           <span class="eyebrow">Wall of impact</span>
           <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.8rem">Recent donors</h3>
           <div class="wall" id="donorWall"></div>
+        </div>
+        <div class="card" style="padding:1.4rem">
+          <span class="eyebrow">Donation history</span>
+          <h3 style="font-family:var(--font-d);font-size:1.3rem;margin-bottom:.8rem">Every gift, logged</h3>
+          <div class="dn-hist" id="dnHistory"></div>
         </div>
         <div class="card" style="padding:1.4rem">
           <span class="eyebrow">Donor leaderboard</span>
