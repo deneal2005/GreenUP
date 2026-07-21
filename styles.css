@@ -340,6 +340,23 @@ a{color:inherit}
 .drop-pair .drop{border-color:var(--clean);background:var(--clean-soft)}
 .drop-pair .drop:hover,.drop-pair .drop.drag{background:color-mix(in srgb,var(--clean) 18%,var(--clean-soft))}
 .drop-tag{position:absolute;top:.5rem;left:.5rem;font-family:var(--font-m);font-size:.62rem;font-weight:600;letter-spacing:.1em;background:var(--ink);color:var(--bg);padding:.18rem .5rem;border-radius:6px;z-index:2}
+/* the AFTER slot stays shut until the BEFORE bytes are safe */
+.drop.locked{opacity:.5;cursor:not-allowed;filter:saturate(.4)}
+.drop.locked:hover{background:var(--clean-soft);border-style:dashed}
+.drop-pair.tree .drop.locked:hover{background:var(--sprout-soft)}
+/* upload state under each thumbnail */
+.up-ok{color:var(--leaf);font-weight:700}
+.up-wait{color:var(--gold-ink,#8A6D1F);font-weight:700}
+.up-go{color:var(--soft);font-weight:600;display:block}
+.up-bar{display:block;height:4px;border-radius:99px;background:var(--line);margin:.35rem auto .3rem;max-width:120px;overflow:hidden}
+.up-bar i{display:block;height:100%;border-radius:99px;background:var(--sprout);transition:width .25s ease}
+/* draft notice above the proof slots */
+.draft-banner{display:none}
+.draft-banner.show{display:block;margin-bottom:.7rem;padding:.7rem .9rem;border-radius:var(--r-sm);font-size:.86rem;line-height:1.55;border:1.5px solid var(--line);background:var(--panel-2)}
+.draft-banner.ok{border-color:var(--leaf);background:var(--sprout-soft)}
+.draft-banner.busy{border-color:var(--clean);background:var(--clean-soft)}
+.draft-banner.warn{border-color:#D8A33A;background:color-mix(in srgb,#D8A33A 14%,var(--panel-2))}
+.draft-banner .btn{margin-left:.4rem;vertical-align:middle}
 .gps-box{display:flex;align-items:center;gap:.8rem;background:var(--ink);color:#CFE8C4;border-radius:var(--r-md);padding:.85rem 1rem;font-family:var(--font-m);font-size:.8rem;line-height:1.5}
 [data-theme="dark"] .gps-box{background:#0A140D;border:1px solid var(--line)}
 .gps-box .pulse{width:10px;height:10px;border-radius:50%;background:var(--sprout);animation:pulse 1.6s infinite;flex:none}

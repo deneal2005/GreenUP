@@ -13,7 +13,33 @@ build step, no framework.
 | `index.html` | the app (open this) |
 | `styles.css` | design system, light + dark themes |
 | `app.js` | all logic — auth, log flow, maps, currency, quiz… |
+| `js/upload-queue.js` | durable background uploads for proof photos |
+| `js/idb.js` | tiny IndexedDB promise wrapper |
 | `supabase-setup.sql` | one-time database setup — **run this first** |
+
+`app.js` loads as an ES module (`<script type="module">`), so it must be served
+over http — see step 2. Still no build step.
+
+## The before photo can't be lost
+
+Logging an action isn't one moment: you shoot **before**, then spend twenty
+minutes actually planting or clearing, then shoot **after**. In between, the tab
+gets backgrounded, the phone sleeps, the browser evicts the page, the wifi drops.
+
+So the moment you pick the before photo it is written to **IndexedDB** and queued
+for upload. From then on:
+
+- the upload runs on its own — you can leave the log screen, it keeps going;
+- a refresh, a crash or a closed tab doesn't lose it — the draft (photo, GPS,
+  species, weight) is restored on your next visit;
+- a failed upload retries automatically with backoff, and immediately when the
+  device comes back online;
+- the **after** slot stays locked until the before photo is durably stored.
+
+One honest limit: a web page can't transfer bytes while it is fully closed —
+that needs a native app, or Background Sync (which iOS doesn't support). What
+this guarantees is that the bytes are never lost, and the transfer resumes the
+moment the page is alive again.
 
 ## Setup (≈5 minutes)
 
