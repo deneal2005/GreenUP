@@ -10,8 +10,13 @@ import { uploads } from './js/upload-queue.js';
    0 · CONFIG
 ------------------------------------------------------------ */
 const SUPABASE_URL = 'https://yosewbyorrtwjycbhhwq.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UKVDIh533AZBaFWUhnwlzA_rHW54MNt'; // publishable — safe in the browser
-const MAPS_KEY     = 'AIzaSyCQL1NAeKvDWK7GBnIelDxxK66vW-9tozU';
+const SUPABASE_KEY = 'sb_publishable_UKVDIh533AZBaFWUhnwlzA_rHW54MNt'; // publishable — safe in the browser (RLS enforces access)
+// Google Maps browser key is read at RUNTIME (set window.GREENUP_CONFIG.mapsKey
+// in index.html) — never hardcoded here. Left blank, the map uses the keyless
+// OpenStreetMap engine, so no key lives in source. A Maps browser key is always
+// visible to the client, so if you set one, restrict it by HTTP referrer + API +
+// quota in Google Cloud Console.
+const MAPS_KEY = (typeof window !== 'undefined' && window.GREENUP_CONFIG && window.GREENUP_CONFIG.mapsKey) || '';
 
 const LEVELS = [
   { n: 'Seed',            e: '🌱', min: 0,   flavor: 'Everyone starts in the dirt.' },
@@ -1180,7 +1185,7 @@ async function submitAction() {
    8 · GOOGLE MAPS — the world grove
 ------------------------------------------------------------ */
 let mapsP = null, worldMap = null, infoWin = null, markers = [], clusterer = null, youMarker = null;
-let mapEngine = null, osmMap = null, osmMarkers = [], osmTiles = null, osmYou = null, gmFailed = false;
+let mapEngine = null, osmMap = null, osmMarkers = [], osmTiles = null, osmYou = null, gmFailed = !MAPS_KEY; // no key → go straight to OpenStreetMap
 
 /* Google calls this if the key is rejected at runtime (API not enabled,
    billing missing, referer blocked…) — we swap to OpenStreetMap so the
@@ -1234,6 +1239,7 @@ function initOsmMap() {
   refreshMarkers();
 }
 function loadMaps() {
+  if (!MAPS_KEY) return Promise.reject(new Error('no Google Maps key — using OpenStreetMap'));
   if (window.google && window.google.maps) return Promise.resolve();
   if (mapsP) return mapsP;
   mapsP = new Promise((res, rej) => {

@@ -106,8 +106,8 @@ A world where environmental action is visible, celebrated, and accessible to eve
   - Account Owner: Delin Meitei (personal)
   - Billing: [Pending—to be clarified]
 
-- **Google Maps API** (Geocoding, Maps JavaScript, Marker Clusterer)
-  - API Key: AIzaSyCQL1NAeKvDWK7GBnIelDxxK66vW-9tozU (publishable)
+- **Google Maps API** (Geocoding, Maps JavaScript, Marker Clusterer) — optional; the map defaults to keyless OpenStreetMap
+  - API Key: [REDACTED — set at runtime via `window.GREENUP_CONFIG.mapsKey`; never commit it. Rotate the previously-committed key in Google Cloud Console.]
   - Account Owner: Delin Meitei (personal)
   - Billing: [Pending—to be clarified]
 

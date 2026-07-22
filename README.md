@@ -94,14 +94,31 @@ For Google, also make sure the Google Cloud OAuth client lists
 `https://yosewbyorrtwjycbhhwq.supabase.co/auth/v1/callback` as a redirect URI
 (Supabase shows this string on the Google provider page).
 
-### 4 · Lock down the Google Maps key (important)
-The Maps key ships in client code by design, but restrict it so nobody else can
-bill you: Google Cloud Console → Credentials → your key →
-**Application restrictions → Websites** → add `localhost:*` and your real domain.
-Keep only **Maps JavaScript API** + **Geocoding API** enabled for it.
+### 4 · (Optional) add a Google Maps key
+The world map works **out of the box with keyless OpenStreetMap** — no key
+needed, nothing to leak. Google Maps is optional and off by default.
 
-> The Supabase **publishable** key is safe to expose. Never put a
-> `service_role` key in this project.
+If you want the Google basemap, set the key at runtime in `index.html`:
+
+```html
+<script>window.GREENUP_CONFIG = { mapsKey: "YOUR_KEY" };</script>
+```
+
+A Maps **browser** key is always visible to the client (it can't be hidden on a
+static site), so the protection is *restriction*, not secrecy. In Google Cloud
+Console → Credentials → your key:
+- **Application restrictions → Websites** → add only your real domain (e.g.
+  `https://deneal2005.github.io/*`) and `localhost:*` for dev
+- **API restrictions** → only **Maps JavaScript API** + **Geocoding API**
+- Set a **billing quota cap** so a stray key can't run up a bill
+
+> The Supabase **publishable** key in `app.js` is safe to expose — access is
+> enforced by row-level security. Never put a `service_role` key in this project.
+
+> ⚠️ **If a Maps key ever lands in git** (it was, historically), treat it as
+> compromised: **regenerate it** in Google Cloud Console, restrict the new one as
+> above, and mark the GitHub secret-scanning alert as *revoked*. Removing it from
+> the current code doesn't scrub it from git history — rotation is the real fix.
 
 ## How points work
 

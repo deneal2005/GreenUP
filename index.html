@@ -579,6 +579,11 @@
   </div>
 </div>
 
+<!-- Optional Google Maps browser key. It is shipped to the client either way,
+     so if you set one, RESTRICT it in Google Cloud (HTTP referrer + Maps
+     JavaScript API + Geocoding API + a billing quota cap). Left blank, the map
+     uses the keyless OpenStreetMap engine and no key is committed to source. -->
+<script>window.GREENUP_CONFIG = { mapsKey: "" };</script>
 <script type="module" src="app.js"></script>
 <noscript><p style="padding:2rem;text-align:center">GreenUp needs JavaScript to grow anything.</p></noscript>
 </body>
