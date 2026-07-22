@@ -370,7 +370,7 @@ async function loadWorld() {
   let rows = null;
   if (db) {
     try {
-      const { data, error } = await db.from('actions').select('*, profiles(username, college, avatar_url), teams(name)').eq('status', 'approved').order('created_at', { ascending: false }).limit(150);
+      const { data, error } = await db.from('actions').select('*, profiles!actions_user_id_fkey(username, college, avatar_url), teams(name)').eq('status', 'approved').order('created_at', { ascending: false }).limit(150);
       if (error) throw error;
       rows = data;
     } catch (e) { sbFail(e); }
@@ -1532,7 +1532,7 @@ async function fetchTeamDetail(id) {
       if (e1) throw e1;
       const { data: mem, error: e2 } = await db.from('team_members').select('role, profiles(id, username, avatar_url)').eq('team_id', id);
       if (e2) throw e2;
-      const { data: acts, error: e3 } = await db.from('actions').select('kind, title, points, weight_kg, place, created_at, profiles(username)').eq('team_id', id).order('created_at', { ascending: false }).limit(200);
+      const { data: acts, error: e3 } = await db.from('actions').select('kind, title, points, weight_kg, place, created_at, profiles!actions_user_id_fkey(username)').eq('team_id', id).order('created_at', { ascending: false }).limit(200);
       if (e3) throw e3;
       return shapeTeamDetail(
         { id: team.id, name: team.name, org: team.org, description: team.description, logo: team.logo_url },

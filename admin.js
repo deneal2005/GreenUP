@@ -220,7 +220,7 @@ async function toggleNotif() {
   pop.style.display = 'block';
   pop.innerHTML = '<b style="font-size:.85rem">Needs review</b><div style="margin-top:.5rem">loading…</div>';
   try {
-    const { data } = await db.from('actions').select('id, kind, title, created_at, profiles(username)').is('reviewed_at', null).neq('status', 'draft').neq('status', 'rejected').order('created_at', { ascending: false }).limit(8);
+    const { data } = await db.from('actions').select('id, kind, title, created_at, profiles!actions_user_id_fkey(username)').is('reviewed_at', null).neq('status', 'draft').neq('status', 'rejected').order('created_at', { ascending: false }).limit(8);
     const rows = data || [];
     pop.innerHTML = '<b style="font-size:.85rem">Needs review (' + rows.length + ')</b>' + (rows.length
       ? rows.map(a => '<div class="notif-row">' + (a.kind === 'tree' ? '🌳' : '🧹') + '<div style="flex:1;min-width:0"><b style="font-size:.85rem">' + esc(a.title || 'Action') + '</b><br><small style="color:var(--faint)">@' + esc(a.profiles ? a.profiles.username : '?') + ' · ' + timeAgo(+new Date(a.created_at)) + '</small></div></div>').join('')
@@ -263,7 +263,7 @@ async function viewOverview() {
   ]);
   let dons = [], acts = [], profs = [];
   try { dons = (await db.from('donations').select('amount_inr, amount, currency, created_at, user_id').order('created_at', { ascending: false }).limit(1000)).data || []; } catch (e) {}
-  try { acts = (await db.from('actions').select('kind, status, created_at, place, profiles(college)').order('created_at', { ascending: false }).limit(1000)).data || []; } catch (e) {}
+  try { acts = (await db.from('actions').select('kind, status, created_at, place, profiles!actions_user_id_fkey(college)').order('created_at', { ascending: false }).limit(1000)).data || []; } catch (e) {}
   const raised = dons.reduce((s, d) => s + (d.amount_inr != null ? +d.amount_inr : +d.amount), 0);
   const donorSet = new Set(dons.map(d => d.user_id || Math.random()));
   const campActive = await getCount('campaigns', q => q.eq('status', 'active'));
@@ -340,7 +340,7 @@ async function viewQueue() {
 }
 async function loadQueue() {
   const list = $('#qList'); list.innerHTML = loadingRows();
-  let q = db.from('actions').select('*, profiles(username, college, avatar_url)', { count: 'exact' });
+  let q = db.from('actions').select('*, profiles!actions_user_id_fkey(username, college, avatar_url)', { count: 'exact' });
   if (qState.status === 'review') q = q.is('reviewed_at', null).neq('status', 'draft').neq('status', 'rejected');
   else if (qState.status !== 'all') q = q.eq('status', qState.status);
   if (qState.kind !== 'all') q = q.eq('kind', qState.kind);
@@ -594,8 +594,19 @@ async function viewRoles() {
 async function loadRoles() {
   const body = $('#rBody'); body.innerHTML = '<tr><td colspan="4">' + loadingRows() + '</td></tr>';
   let data;
-  try { const r = await db.from('user_roles').select('user_id, role, granted_at, profiles(username, avatar_url)').order('granted_at', { ascending: false }); if (r.error) throw r.error; data = r.data || []; }
-  catch (e) { body.innerHTML = '<tr><td colspan="4">' + empty('⚠️', 'Could not load roles.') + '</td></tr>'; return; }
+  // user_roles has no FK to profiles (it references auth.users), so fetch the
+  // profiles separately and stitch them on by id
+  try {
+    const r = await db.from('user_roles').select('user_id, role, granted_at').order('granted_at', { ascending: false });
+    if (r.error) throw r.error;
+    data = r.data || [];
+    const ids = [...new Set(data.map(x => x.user_id))];
+    if (ids.length) {
+      const { data: profs } = await db.from('profiles').select('id, username, avatar_url').in('id', ids);
+      const byId = {}; (profs || []).forEach(p => { byId[p.id] = p; });
+      data.forEach(x => { x.profiles = byId[x.user_id] || null; });
+    }
+  } catch (e) { body.innerHTML = '<tr><td colspan="4">' + empty('⚠️', 'Could not load roles.') + '</td></tr>'; return; }
   if (!data.length) { body.innerHTML = '<tr><td colspan="4">' + empty('🛡️', 'No staff yet.') + '</td></tr>'; return; }
   body.innerHTML = data.map(r =>
     '<tr><td><div class="a-userchip">' + avatarHtml(r.profiles ? r.profiles.username : '?', r.profiles ? r.profiles.avatar_url : '') + '<b>@' + esc(r.profiles ? r.profiles.username : r.user_id.slice(0, 8)) + '</b></div></td>' +
